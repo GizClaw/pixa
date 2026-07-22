@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help check c-check go-check flutter-check ts-check editor preview
+.PHONY: help check c-check go-check flutter-check ts-check reviewer
 
 help:
 	@printf '%s\n' \
@@ -9,8 +9,7 @@ help:
 	  'go-check       Format, vet, modernize, and test the Go package' \
 	  'flutter-check  Format, analyze, and test the Flutter package' \
 	  'ts-check       Format, type-check, and test the TypeScript package' \
-	  'editor         Reserved for the PIXA editor' \
-	  'preview        Reserved for the PIXA previewer'
+	  'reviewer       Start the local PIXA animation reviewer'
 
 check: c-check go-check flutter-check ts-check
 
@@ -37,10 +36,5 @@ ts-check:
 	cd packages/typescript && npm run typecheck
 	cd packages/typescript && npm test
 
-editor:
-	@echo 'The editor has not been migrated yet.' >&2
-	@exit 1
-
-preview:
-	@echo 'The previewer has not been migrated yet.' >&2
-	@exit 1
+reviewer:
+	python3 -m http.server 4173 --directory tools/reviewer
