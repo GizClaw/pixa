@@ -135,7 +135,7 @@ int pixa_find_clip(const pixa_asset_t *asset, const char *name,
 int pixa_find_clip_or_default(const pixa_asset_t *asset, const char *name,
                               pixa_clip_t *out_clip) {
   int rc = pixa_find_clip(asset, name, out_clip);
-  if (rc == PIXA_OK) {
+  if (rc != PIXA_ERR_CLIP_NOT_FOUND) {
     return rc;
   }
   return pixa_find_clip(asset, "default", out_clip);
