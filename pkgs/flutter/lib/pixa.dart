@@ -276,6 +276,7 @@ PixaAsset validatePixa(Uint8List bytes, {PixaValidationMode? mode}) {
       break;
     case PixaValidationMode.badgedef:
       _validateBadgeDefPixa(asset);
+      break;
     case null:
       break;
   }
