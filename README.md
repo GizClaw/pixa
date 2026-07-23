@@ -4,7 +4,7 @@ PIXA is the shared format, runtime, tools, and distributable animation repositor
 
 The canonical format contract is [docs/format.md](docs/format.md), and the C platform boundary is documented in [docs/c-osal.md](docs/c-osal.md). Committed animations are under [assets/](assets/). Existing product repositories will consume immutable PIXA release tags rather than carrying local implementation copies.
 
-`assets/pets/codex/dewey.pixa` is the shared PIXA example used by the Go,
+`assets/codex-pets/dewey.pixa` is the shared PIXA example used by the Go,
 Flutter, and TypeScript integration tests. Additional distributable animation
 bundles are cataloged in [assets/README.md](assets/README.md).
 

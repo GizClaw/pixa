@@ -7,7 +7,7 @@ import (
 )
 
 func TestParseSharedAsset(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "assets", "pets", "codex", "dewey.pixa"))
+	data, err := os.ReadFile(filepath.Join("..", "..", "assets", "codex-pets", "dewey.pixa"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -3,7 +3,7 @@
 This directory contains distributable PIXA animation bundles managed by
 Git LFS.
 
-- `pets/codex/` contains the Codex desktop pet bundles; `dewey.pixa` is the
+- `codex-pets/` contains the Codex desktop pet bundles; `dewey.pixa` is the
   shared integration-test fixture.
 
 Source artwork and asset-cooking scripts remain in the product or deployment
