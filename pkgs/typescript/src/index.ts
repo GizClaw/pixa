@@ -26,6 +26,7 @@ export type PixaFrameType = "key" | "diff" | "unknown";
 
 export type PixaFrame = {
   durationMs: number;
+  encoding: number;
   payloadLength: number;
   payloadOffset: number;
   type: PixaFrameType;
@@ -83,6 +84,9 @@ export function parsePixa(input: ArrayBuffer | ArrayBufferView): PixaAsset {
 
   const width = view.getUint16(8, true);
   const height = view.getUint16(10, true);
+  if (width === 0 || height === 0) {
+    throw new PixaParseError("Invalid PIXA canvas size.");
+  }
   const colorCount = view.getUint16(12, true);
   const clipCount = view.getUint16(14, true);
   const frameCount = view.getUint32(16, true);
@@ -235,6 +239,14 @@ export function renderPixaFrameRGBA(
       `PIXA frame ${frameIndex} is ${frame.type}; only key frames can be rendered.`,
     );
   }
+  const legacyRgb565 =
+    frame.encoding === 0 &&
+    frame.payloadLength === asset.canvas.rgb565ByteCount;
+  if (frame.encoding !== 2 && !legacyRgb565) {
+    throw new PixaParseError(
+      `PIXA key frame encoding ${frame.encoding} is unsupported by the TypeScript renderer.`,
+    );
+  }
   if (frame.payloadLength < asset.canvas.rgb565ByteCount) {
     throw new PixaParseError(
       `PIXA key frame payload is ${frame.payloadLength} bytes, expected ${asset.canvas.rgb565ByteCount}.`,
@@ -319,6 +331,7 @@ function parseFrames(
     const typeCode = view.getUint8(base + 2);
     frames.push({
       durationMs: view.getUint16(base, true),
+      encoding: view.getUint8(base + 3),
       payloadLength: framePayloadLength,
       payloadOffset,
       type: frameType(typeCode),

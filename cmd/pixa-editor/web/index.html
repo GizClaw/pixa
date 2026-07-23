@@ -238,7 +238,7 @@
       for (let i = 0; i < frameCount; i++) {
         const base = frameOffset + i * FRAME_ENTRY, payload = view.getUint32(base + 4, true), length = view.getUint32(base + 8, true), typeCode = view.getUint8(base + 2);
         if (payload > payloadLength || length > payloadLength - payload) throw new PixaError('Invalid PIXA frame payload range.');
-        frames.push({ durationMs: view.getUint16(base, true), typeCode, type: typeCode === 0 ? 'key' : typeCode === 1 ? 'diff' : 'unknown', payloadOffset: payload, payloadLength: length });
+        frames.push({ durationMs: view.getUint16(base, true), typeCode, encoding: view.getUint8(base + 3), type: typeCode === 0 ? 'key' : typeCode === 1 ? 'diff' : 'unknown', payloadOffset: payload, payloadLength: length });
       }
       return { bytes: new Uint8Array(buffer), byteLength: buffer.byteLength, version, width, height, colorCount, clipCount, frameCount, payloadOffset, payloadLength, clips, frames };
     }
@@ -247,7 +247,8 @@
       if (!frame) throw new PixaError(`PIXA frame ${index} does not exist.`);
       if (frame.type !== 'key') throw new PixaError(`Frame ${index} is ${frame.type}; the editor currently renders key frames only.`);
       const expected = asset.width * asset.height * RGB565_BYTES;
-      if (frame.payloadLength < expected) throw new PixaError(`Frame payload is ${frame.payloadLength} bytes; expected ${expected}.`);
+      if (frame.encoding !== 0 && frame.encoding !== 2) throw new PixaError(`Frame ${index} uses unsupported key-frame encoding ${frame.encoding}.`);
+      if (frame.payloadLength !== expected) throw new PixaError(`Frame payload is ${frame.payloadLength} bytes; expected ${expected}.`);
       const start = asset.payloadOffset + frame.payloadOffset, rgba = new Uint8ClampedArray(asset.width * asset.height * 4);
       for (let pixel = 0; pixel < asset.width * asset.height; pixel++) {
         const source = start + pixel * 2, value = asset.bytes[source] | (asset.bytes[source + 1] << 8), target = pixel * 4;

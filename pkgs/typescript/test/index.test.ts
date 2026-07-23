@@ -42,6 +42,7 @@ test("parsePixa reads a valid PIXA header, clips, and frames", () => {
   assert.deepEqual(asset.frames, [
     {
       durationMs: 120,
+      encoding: 0,
       payloadLength: 4,
       payloadOffset: 0,
       type: "key",
@@ -76,6 +77,10 @@ test("parsePixa rejects invalid files", () => {
   assert.throws(
     () => parsePixa(new TextEncoder().encode("ZPET")),
     PixaParseError,
+  );
+  assert.throws(
+    () => parsePixa(makePixa({ clips: ["idle"], width: 0 })),
+    /canvas size/,
   );
   assert.throws(
     () =>

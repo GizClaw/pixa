@@ -43,6 +43,7 @@ void main() {
     expect(asset.clips[0].loop, isTrue);
     expect(asset.frames.single.type, PixaFrameType.key);
     expect(asset.frames.single.typeCode, 0);
+    expect(asset.frames.single.encoding, 0);
     expect(asset.payloadLength, 4);
   });
 

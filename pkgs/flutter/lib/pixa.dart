@@ -64,6 +64,7 @@ enum PixaFrameType { key, diff, unknown }
 class PixaFrame {
   const PixaFrame({
     required this.durationMs,
+    required this.encoding,
     required this.type,
     required this.typeCode,
     required this.payloadOffset,
@@ -71,6 +72,7 @@ class PixaFrame {
   });
 
   final int durationMs;
+  final int encoding;
   final PixaFrameType type;
   final int typeCode;
   final int payloadOffset;
@@ -242,6 +244,7 @@ PixaAsset parsePixa(Uint8List input) {
     frames.add(
       PixaFrame(
         durationMs: data.getUint16(base, Endian.little),
+        encoding: data.getUint8(base + 3),
         type: pixaFrameType(typeCode),
         typeCode: typeCode,
         payloadOffset: framePayloadOffset,
@@ -270,6 +273,7 @@ PixaAsset validatePixa(Uint8List bytes, {PixaValidationMode? mode}) {
   switch (mode) {
     case PixaValidationMode.petdef:
       _validatePetDefPixa(asset);
+      break;
     case PixaValidationMode.badgedef:
       _validateBadgeDefPixa(asset);
     case null:
@@ -343,6 +347,16 @@ PixaFrameRgba renderPixaFrameRgba(PixaAsset asset, int frameIndex) {
   if (frame.type != PixaFrameType.key) {
     throw PixaParseException(
       'PIXA frame $frameIndex is ${frame.type.name}; only key frames can be rendered',
+    );
+  }
+  final legacyRgb565 =
+      frame.encoding == 0 &&
+      frame.payloadLength == asset.canvas.rgb565ByteCount;
+  if (frame.encoding != 2 && !legacyRgb565) {
+    throw PixaParseException(
+      'PIXA key-frame encoding ${frame.encoding} is unsupported by the Flutter renderer',
+      asset.bytes,
+      asset.payloadOffset + frame.payloadOffset,
     );
   }
 
