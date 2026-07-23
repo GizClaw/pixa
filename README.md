@@ -45,6 +45,9 @@ Python executable. It currently provides preview and inspection only; editing
 will be added to this same command. To install it for repeated use, run
 `go install github.com/GizClaw/pixa/cmd/pixa-editor@latest`.
 
+Reusable WebP-atlas and GIF cooking commands are documented in
+[tools/README.md](tools/README.md).
+
 ## Local checks
 
 Run `make help` to view available commands, or `make check` to run all installed package checks.

@@ -70,4 +70,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - run: make tools-check
       - run: make ts-check

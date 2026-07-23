@@ -1,3 +1,6 @@
 # Contributing
 
-Run `make check` before submitting changes. Product-specific behavior, deploy configuration, source artwork, and asset-cooking scripts do not belong in this repository.
+Run `make check` before submitting changes. Reusable format and asset-cooking
+tools belong in this repository. Product-specific behavior, deploy
+configuration, source artwork, and production recipes remain with their owning
+product or deployment repository.
