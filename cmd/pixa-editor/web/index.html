@@ -213,6 +213,7 @@
     }
     function text(view, offset, max) {
       let length = 0; while (length < max && view.getUint8(offset + length) !== 0) length++;
+      if (length === max) throw new PixaError('PIXA clip name is not NUL-terminated.');
       return new TextDecoder().decode(new Uint8Array(view.buffer, view.byteOffset + offset, length));
     }
     function parsePixa(buffer) {

@@ -196,8 +196,11 @@ int pixa_decode_clip_frame_bgra(const pixa_asset_t *asset,
   if (clip.frame_count == 0u) {
     return PIXA_OK;
   }
+  if (out_len < pixa_canvas_bgra_bytes(asset->canvas)) {
+    return PIXA_ERR_OUTPUT_TOO_SMALL;
+  }
 
-  memset(out_bgra, 0, out_len);
+  memset(out_bgra, 0, pixa_canvas_bgra_bytes(asset->canvas));
   for (uint32_t i = 0u; i <= frame_index % clip.frame_count; ++i) {
     rc = pixa_apply_clip_frame_bgra(asset, &clip, i, out_bgra, out_len);
     if (rc != PIXA_OK) {
