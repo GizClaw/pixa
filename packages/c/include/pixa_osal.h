@@ -74,6 +74,13 @@ static inline int pixa_osal_read(const pixa_osal_api_t *api,
     return PIXA_OSAL_ERR_INVALID_ARG;
   return api->vtable->read(api->user, file, data, len, out_read);
 }
+static inline int pixa_osal_seek(const pixa_osal_api_t *api,
+                                 pixa_osal_file_t *file, uint64_t position) {
+  if (api == NULL || api->vtable == NULL || api->vtable->seek == NULL ||
+      file == NULL)
+    return PIXA_OSAL_ERR_INVALID_ARG;
+  return api->vtable->seek(api->user, file, position);
+}
 static inline int pixa_osal_write(const pixa_osal_api_t *api,
                                   pixa_osal_file_t *file, const void *data,
                                   size_t len, size_t *out_written) {

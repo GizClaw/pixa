@@ -5,7 +5,7 @@
 help:
 	@printf '%s\n' \
 	  'check          Run all repository checks' \
-	  'c-check        Compile and test the portable C package and cgo OSAL ABI' \
+	  'c-check        Compile and test the portable C package and Go-backed cgo OSAL' \
 	  'go-check       Format, vet, modernize, and test the Go package' \
 	  'flutter-check  Format, analyze, and test the Flutter package' \
 	  'ts-check       Format, type-check, and test the TypeScript package' \
@@ -14,7 +14,7 @@ help:
 check: c-check go-check flutter-check ts-check
 
 c-check:
-	clang-format --dry-run --Werror packages/c/include/*.h packages/c/src/*.c packages/c/tests/*.c
+	clang-format --dry-run --Werror packages/c/include/*.h packages/c/src/*.c packages/c/tests/*.c packages/c/tests/cgo/*.c
 	! rg -n 'h2_pal|esp_|freertos|lvgl|#include <lvgl' packages/c/include packages/c/src
 	$(MAKE) -C packages/c check
 	cd packages/c/tests/cgo && go test ./...

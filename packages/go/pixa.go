@@ -10,7 +10,24 @@ const (
 	Magic      = "PIXA"
 	HeaderSize = 40
 	Version    = 1
+	clipSize   = 56
+	frameSize  = 16
 )
+
+// Clip is one animation entry in the PIXA clip table.
+type Clip struct {
+	Name                                    string
+	AnchorX, AnchorY                        int16
+	FirstFrame, FrameCount, TotalDurationMS uint32
+	Loop                                    bool
+}
+
+// Frame is one payload reference in the PIXA frame table.
+type Frame struct {
+	DurationMS                   uint16
+	Type                         uint8
+	PayloadOffset, PayloadLength uint32
+}
 
 // Asset is the validated PIXA v1 container metadata. Table and payload ranges
 // are guaranteed to be within Bytes.
@@ -27,6 +44,8 @@ type Asset struct {
 	FrameOffset   uint32
 	PayloadOffset uint32
 	PayloadLength uint32
+	Clips         []Clip
+	Frames        []Frame
 }
 
 // Parse validates the PIXA v1 header and its declared table/payload ranges.
@@ -56,10 +75,45 @@ func Parse(data []byte) (Asset, error) {
 		return Asset{}, fmt.Errorf("pixa: empty canvas")
 	}
 	if !rangeOK(len(data), asset.PaletteOffset, uint64(asset.ColorCount)*2) ||
-		!rangeOK(len(data), asset.ClipOffset, uint64(asset.ClipCount)*56) ||
-		!rangeOK(len(data), asset.FrameOffset, uint64(asset.FrameCount)*16) ||
+		!rangeOK(len(data), asset.ClipOffset, uint64(asset.ClipCount)*clipSize) ||
+		!rangeOK(len(data), asset.FrameOffset, uint64(asset.FrameCount)*frameSize) ||
 		!rangeOK(len(data), asset.PayloadOffset, uint64(asset.PayloadLength)) {
 		return Asset{}, fmt.Errorf("pixa: table or payload range exceeds file")
+	}
+	asset.Clips = make([]Clip, asset.ClipCount)
+	for i := range asset.Clips {
+		base := int(asset.ClipOffset) + i*clipSize
+		first, count := binary.LittleEndian.Uint32(data[base+36:]), binary.LittleEndian.Uint32(data[base+40:])
+		if first > asset.FrameCount || count > asset.FrameCount-first {
+			return Asset{}, fmt.Errorf("pixa: clip %d frame range exceeds table", i)
+		}
+		nameEnd := 0
+		for nameEnd < 32 && data[base+nameEnd] != 0 {
+			nameEnd++
+		}
+		asset.Clips[i] = Clip{
+			Name:            string(data[base : base+nameEnd]),
+			AnchorX:         int16(binary.LittleEndian.Uint16(data[base+32:])),
+			AnchorY:         int16(binary.LittleEndian.Uint16(data[base+34:])),
+			FirstFrame:      first,
+			FrameCount:      count,
+			TotalDurationMS: binary.LittleEndian.Uint32(data[base+44:]),
+			Loop:            binary.LittleEndian.Uint16(data[base+48:])&1 != 0,
+		}
+	}
+	asset.Frames = make([]Frame, asset.FrameCount)
+	for i := range asset.Frames {
+		base := int(asset.FrameOffset) + i*frameSize
+		off, size := binary.LittleEndian.Uint32(data[base+4:]), binary.LittleEndian.Uint32(data[base+8:])
+		if uint64(off)+uint64(size) > uint64(asset.PayloadLength) {
+			return Asset{}, fmt.Errorf("pixa: frame %d payload range exceeds payload", i)
+		}
+		asset.Frames[i] = Frame{
+			DurationMS:    binary.LittleEndian.Uint16(data[base:]),
+			Type:          data[base+2],
+			PayloadOffset: off,
+			PayloadLength: size,
+		}
 	}
 	return asset, nil
 }
