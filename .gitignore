@@ -1,7 +1,7 @@
-packages/flutter/.dart_tool/
-packages/flutter/build/
-packages/typescript/node_modules/
-packages/c/tests/test_public_headers
-packages/c/tests/test_pixa_blit
-packages/c/tests/test_pixa_decode
-packages/c/tests/test_pixa_dir
+pkgs/flutter/.dart_tool/
+pkgs/flutter/build/
+pkgs/typescript/node_modules/
+pkgs/c/tests/test_public_headers
+pkgs/c/tests/test_pixa_blit
+pkgs/c/tests/test_pixa_decode
+pkgs/c/tests/test_pixa_dir
