@@ -101,6 +101,9 @@ int pixa_clip_at(const pixa_asset_t *asset, uint16_t index,
   while (name_len < PIXA_MAX_CLIP_NAME && raw_name[name_len] != '\0') {
     ++name_len;
   }
+  if (name_len == PIXA_MAX_CLIP_NAME) {
+    return PIXA_ERR_INVALID_FORMAT;
+  }
   first_frame = read_u32(asset->data, base + 36u);
   frame_count = read_u32(asset->data, base + 40u);
   if (first_frame > asset->frame_count ||

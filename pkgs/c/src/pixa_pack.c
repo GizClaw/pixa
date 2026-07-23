@@ -401,6 +401,18 @@ static int append_rle(pixa_vec_t *payload, const uint8_t *indices,
   return PIXA_OK;
 }
 
+static int append_rgb565(pixa_vec_t *payload, const uint8_t *argb4444,
+                         size_t frame_bytes) {
+  for (size_t offset = 0u; offset < frame_bytes; offset += 2u) {
+    uint16_t color = argb4444_to_rgb565(read_le16(argb4444, offset));
+    uint8_t bytes[2] = {(uint8_t)color, (uint8_t)(color >> 8u)};
+    int rc = vec_append(payload, bytes, sizeof(bytes));
+    if (rc != PIXA_OK)
+      return rc;
+  }
+  return PIXA_OK;
+}
+
 static int safe_clip_id(const char *id) {
   size_t len;
   if (id == NULL || id[0] == '\0') {
@@ -608,14 +620,7 @@ int pixa_pack_dir_to_file(const char *dir_path, const char *out_path,
     for (uint32_t frame = 0u; frame < clips[i].dir_clip.frame_count; ++frame) {
       const uint8_t *frame_data =
           clips[i].frames + (size_t)frame * clips[i].dir_clip.frame_bytes;
-      rc = index_frame(frame_data, clips[i].dir_clip.frame_bytes, indices,
-                       palette, &palette_count);
-      if (rc == PIXA_OK) {
-        uint32_t rle_offset = 0u;
-        uint32_t rle_len = 0u;
-        rc = append_rle(&payload, indices, pixa_canvas_pixel_count(meta.canvas),
-                        &rle_offset, &rle_len);
-      }
+      rc = append_rgb565(&payload, frame_data, clips[i].dir_clip.frame_bytes);
       if (rc != PIXA_OK) {
         alloc.free(alloc.user, index_data);
         alloc.free(alloc.user, indices);
@@ -693,29 +698,21 @@ int pixa_pack_dir_to_file(const char *dir_path, const char *out_path,
       for (uint32_t frame = 0u; frame < clip->dir_clip.frame_count; ++frame) {
         size_t frame_base =
             frame_offset + (size_t)global_frame * PIXA_FRAME_ENTRY_SIZE;
-        uint32_t rle_len = 0u;
-        size_t scan = payload_cursor;
-        size_t pixels = 0u;
-        while (scan + 1u < payload.len &&
-               pixels < pixa_canvas_pixel_count(meta.canvas)) {
-          pixels += payload.data[scan];
-          scan += 2u;
-        }
-        if (pixels != pixa_canvas_pixel_count(meta.canvas) ||
-            scan > payload.len) {
+        uint32_t frame_len = (uint32_t)pixa_canvas_argb4444_bytes(meta.canvas);
+        if (payload_cursor > payload.len ||
+            frame_len > payload.len - payload_cursor) {
           free_clip_states(clips, options->clip_count, alloc);
           vec_free(&payload);
           vec_free(&out);
           return PIXA_ERR_INVALID_FORMAT;
         }
-        rle_len = (uint32_t)(scan - payload_cursor);
         write_u16(out.data, frame_base + 0u,
                   read_le16(clip->dir_clip.durations_le, (size_t)frame * 2u));
         out.data[frame_base + 2u] = PIXA_FRAME_KEY;
-        out.data[frame_base + 3u] = 1u;
+        out.data[frame_base + 3u] = 2u;
         write_u32(out.data, frame_base + 4u, (uint32_t)payload_cursor);
-        write_u32(out.data, frame_base + 8u, rle_len);
-        payload_cursor = scan;
+        write_u32(out.data, frame_base + 8u, frame_len);
+        payload_cursor += frame_len;
         ++global_frame;
       }
     }
