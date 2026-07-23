@@ -1,0 +1,89 @@
+name: OpenAI PR review on request
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      pull_request_number:
+        description: Open internal pull request to review.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: openai-pr-review-${{ github.event.issue.number || inputs.pull_request_number }}
+  cancel-in-progress: true
+
+jobs:
+  pull-request:
+    if: >-
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request) ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      eligible: ${{ steps.pr.outputs.eligible }}
+      number: ${{ steps.pr.outputs.number }}
+      base_sha: ${{ steps.pr.outputs.base_sha }}
+      head_sha: ${{ steps.pr.outputs.head_sha }}
+      request_comment_id: ${{ steps.pr.outputs.request_comment_id }}
+    steps:
+      - name: Authorize explicit review request
+        id: pr
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          REQUESTED_PULL_NUMBER: ${{ inputs.pull_request_number }}
+        with:
+          script: |
+            const manual = context.eventName === 'workflow_dispatch';
+            if (!manual) {
+              if (!/^@codex(?:\s+review)?$/i.test(context.payload.comment.body.trim())) {
+                core.setOutput('eligible', 'false');
+                return;
+              }
+              const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                username: context.payload.comment.user.login,
+              });
+              if (!['admin', 'maintain', 'write'].includes(permission.permission)) {
+                core.setOutput('eligible', 'false');
+                return;
+              }
+              core.setOutput('request_comment_id', String(context.payload.comment.id));
+            }
+            const number = Number(manual ? process.env.REQUESTED_PULL_NUMBER : context.payload.issue.number);
+            if (!Number.isSafeInteger(number) || number < 1) {
+              core.setFailed('A valid pull request number is required.');
+              return;
+            }
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: number,
+            });
+            const eligible = pr.state === 'open' && !pr.draft && pr.head.repo?.fork === false;
+            core.setOutput('eligible', String(eligible));
+            core.setOutput('number', String(pr.number));
+            core.setOutput('base_sha', pr.base.sha);
+            core.setOutput('head_sha', pr.head.sha);
+
+  review:
+    needs: pull-request
+    if: needs.pull-request.outputs.eligible == 'true'
+    uses: GizClaw/github-workflows/.github/workflows/codex-openai-review.yml@v1
+    with:
+      model: gpt-5.6-terra
+      effort: medium
+      review-instructions: >-
+        Review only the pull-request diff and report actionable findings.
+      pull_request_number: ${{ needs.pull-request.outputs.number }}
+      base_sha: ${{ needs.pull-request.outputs.base_sha }}
+      head_sha: ${{ needs.pull-request.outputs.head_sha }}
+      request_comment_id: ${{ needs.pull-request.outputs.request_comment_id }}
+    secrets:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
