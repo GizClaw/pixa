@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  c:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.4'
+      - run: sudo apt-get update && sudo apt-get install -y clang-format
+      - run: make c-check
+  cgo:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - if: matrix.os == 'windows-latest'
+        id: msys2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: mingw-w64-x86_64-gcc
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.4'
+      - if: matrix.os != 'windows-latest'
+        run: go test ./...
+        working-directory: pkgs/c/tests/cgo
+      - if: matrix.os == 'windows-latest'
+        run: go test ./...
+        shell: pwsh
+        env:
+          CC: '${{ steps.msys2.outputs.msys2-location }}\mingw64\bin\gcc.exe'
+        working-directory: pkgs/c/tests/cgo
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.4'
+      - run: go install golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest
+      - run: PATH="$HOME/go/bin:$PATH" make go-check
+  flutter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: make flutter-check
+  typescript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: make ts-check

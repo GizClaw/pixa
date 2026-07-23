@@ -1,0 +1,39 @@
+.DEFAULT_GOAL := help
+
+.PHONY: help check c-check go-check flutter-check ts-check editor
+
+help:
+	@printf '%s\n' \
+	  'check          Run all repository checks' \
+	  'c-check        Compile and test the portable C package through cgo' \
+	  'go-check       Format, vet, modernize, and test Go modules' \
+	  'flutter-check  Format, analyze, and test the Flutter package' \
+	  'ts-check       Format, type-check, and test the TypeScript package' \
+	  'editor         Start the local PIXA animation editor'
+
+check: c-check go-check flutter-check ts-check
+
+c-check:
+	clang-format --dry-run --Werror pkgs/c/include/*.h pkgs/c/src/*.c pkgs/c/tests/*.c pkgs/c/tests/cgo/*.c
+	! rg -n 'h2_pal|esp_|freertos|lvgl|#include <lvgl' pkgs/c/include pkgs/c/src
+	cd pkgs/c/tests/cgo && go test ./...
+
+go-check:
+	test -z "$$(gofmt -l cmd pkgs/go)"
+	go vet ./...
+	modernize ./...
+	go test ./...
+
+flutter-check:
+	cd pkgs/flutter && dart format --output=none --set-exit-if-changed lib test
+	cd pkgs/flutter && flutter analyze
+	cd pkgs/flutter && flutter test
+
+ts-check:
+	cd pkgs/typescript && npm install
+	cd pkgs/typescript && npm run format:check
+	cd pkgs/typescript && npm run typecheck
+	cd pkgs/typescript && npm test
+
+editor:
+	go run ./cmd/pixa-editor

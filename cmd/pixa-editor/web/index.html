@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GizClaw PIXA Editor</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07090d;
+      --panel: rgba(18, 22, 30, .88);
+      --line: rgba(255, 255, 255, .10);
+      --muted: #8d96a7;
+      --text: #f3f6fb;
+      --accent: #8cf5c5;
+      --accent-2: #6ba8ff;
+      --danger: #ff6b78;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font: 14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 15% 0%, rgba(107, 168, 255, .16), transparent 32rem),
+        radial-gradient(circle at 90% 18%, rgba(140, 245, 197, .10), transparent 28rem),
+        var(--bg);
+    }
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    .shell { min-height: 100vh; display: grid; grid-template-rows: auto 1fr; }
+    header {
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 14px 22px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(7, 9, 13, .72);
+      backdrop-filter: blur(18px);
+    }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .mark {
+      width: 40px; height: 40px; display: grid; place-items: center;
+      border: 1px solid rgba(140, 245, 197, .45); border-radius: 12px;
+      color: var(--accent); background: rgba(140, 245, 197, .07);
+      box-shadow: inset 0 0 22px rgba(140, 245, 197, .08);
+      font: 700 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    h1 { margin: 0; font-size: 16px; letter-spacing: .02em; }
+    .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .status { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: #596170; }
+    .dot.ready { background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+    main { display: grid; grid-template-columns: 250px minmax(340px, 1fr) 310px; min-height: 0; }
+    aside, .inspector { min-height: 0; overflow: auto; background: var(--panel); }
+    aside { border-right: 1px solid var(--line); }
+    .inspector { border-left: 1px solid var(--line); }
+    .section { padding: 18px; border-bottom: 1px solid var(--line); }
+    .eyebrow { margin: 0 0 12px; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+    .drop {
+      display: grid; gap: 8px; padding: 18px 14px; border: 1px dashed rgba(140, 245, 197, .34);
+      border-radius: 12px; text-align: center; background: rgba(140, 245, 197, .035); cursor: pointer;
+      transition: .16s ease;
+    }
+    .drop:hover, .drop.drag { border-color: var(--accent); background: rgba(140, 245, 197, .08); transform: translateY(-1px); }
+    .drop strong { font-size: 13px; }
+    .drop span { color: var(--muted); font-size: 11px; }
+    #file { display: none; }
+    .filename { margin-top: 10px; overflow-wrap: anywhere; font: 11px/1.4 ui-monospace, monospace; color: var(--accent); }
+    .clips { display: grid; gap: 6px; }
+    .clip {
+      width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px;
+      padding: 9px 10px; border: 1px solid transparent; border-radius: 8px; background: transparent; cursor: pointer; text-align: left;
+    }
+    .clip:hover { background: rgba(255,255,255,.045); }
+    .clip.active { border-color: rgba(140, 245, 197, .34); color: var(--accent); background: rgba(140, 245, 197, .07); }
+    .pill { padding: 2px 6px; border-radius: 999px; color: var(--muted); background: rgba(255,255,255,.06); font-size: 10px; }
+    .stage-wrap { min-width: 0; display: grid; grid-template-rows: 1fr auto; }
+    .stage {
+      position: relative; display: grid; place-items: center; min-height: 420px; overflow: auto; padding: 42px;
+      background-color: #16191f;
+      background-image:
+        linear-gradient(45deg, #1e222a 25%, transparent 25%), linear-gradient(-45deg, #1e222a 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #1e222a 75%), linear-gradient(-45deg, transparent 75%, #1e222a 75%);
+      background-size: 24px 24px; background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+    }
+    .stage.white { background: #fff; }
+    .stage.black { background: #000; }
+    canvas { image-rendering: pixelated; box-shadow: 0 20px 70px rgba(0,0,0,.44); }
+    .empty { max-width: 420px; text-align: center; color: var(--muted); }
+    .empty b { display: block; margin-bottom: 8px; color: var(--text); font-size: 20px; }
+    .controls {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px 18px;
+      border-top: 1px solid var(--line); background: rgba(12, 15, 21, .96);
+    }
+    .icon-button, .seg button {
+      min-width: 36px; height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.04); cursor: pointer;
+    }
+    .icon-button:hover, .seg button:hover { border-color: rgba(140,245,197,.45); }
+    .seg { display: flex; }
+    .seg button { border-radius: 0; margin-left: -1px; }
+    .seg button:first-child { border-radius: 8px 0 0 8px; }
+    .seg button:last-child { border-radius: 0 8px 8px 0; }
+    .seg button.active { color: var(--accent); background: rgba(140,245,197,.09); }
+    .grow { flex: 1; }
+    label.control { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; }
+    input[type="range"] { width: 110px; accent-color: var(--accent); }
+    .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .metric { min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: rgba(255,255,255,.025); }
+    .metric span { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
+    .metric b { display: block; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; font: 600 12px/1.3 ui-monospace, monospace; }
+    table { width: 100%; border-collapse: collapse; font: 11px/1.4 ui-monospace, monospace; }
+    th, td { padding: 7px 3px; border-bottom: 1px solid rgba(255,255,255,.06); text-align: right; }
+    th:first-child, td:first-child { text-align: left; }
+    th { color: var(--muted); font-weight: 500; }
+    tr.current td { color: var(--accent); }
+    .error { color: var(--danger); white-space: pre-wrap; overflow-wrap: anywhere; }
+    kbd { padding: 2px 5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; color: var(--muted); font: 10px ui-monospace, monospace; }
+    @media (max-width: 980px) {
+      main { grid-template-columns: 220px 1fr; }
+      .inspector { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--line); }
+    }
+    @media (max-width: 680px) {
+      header { padding: 12px 14px; } .status { display: none; }
+      main { display: block; } aside { border-right: 0; } .clips { grid-template-columns: 1fr 1fr; }
+      .stage { min-height: 390px; padding: 22px; } .inspector { overflow: visible; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand">
+        <div class="mark">PX</div>
+        <div><h1>PIXA Editor</h1><div class="sub">GizClaw animation editor · preview mode</div></div>
+      </div>
+      <div class="status"><span id="status-dot" class="dot"></span><span id="status">等待 PIXA 文件</span></div>
+    </header>
+    <main>
+      <aside>
+        <section class="section">
+          <p class="eyebrow">Asset</p>
+          <label id="drop" class="drop" for="file">
+            <strong>打开或拖入 .pixa</strong>
+            <span>文件仅在当前浏览器中解析</span>
+          </label>
+          <input id="file" type="file" accept=".pixa,application/octet-stream">
+          <div id="filename" class="filename"></div>
+        </section>
+        <section class="section">
+          <p class="eyebrow">Clips</p>
+          <div id="clips" class="clips"><span class="sub">加载文件后显示</span></div>
+        </section>
+        <section class="section sub">
+          <p class="eyebrow">Shortcuts</p>
+          <div><kbd>Space</kbd> 播放 / 暂停</div><br>
+          <div><kbd>←</kbd> <kbd>→</kbd> 逐帧查看</div>
+        </section>
+      </aside>
+
+      <section class="stage-wrap">
+        <div id="stage" class="stage">
+          <div id="empty" class="empty"><b>Preview animation frame by frame.</b>选择仓库中的 PIXA 文件，检查真实 RGB565 渲染、clip 循环和帧元数据。</div>
+          <canvas id="canvas" hidden></canvas>
+        </div>
+        <div class="controls">
+          <button id="prev" class="icon-button" title="上一帧">←</button>
+          <button id="play" class="icon-button" title="播放或暂停">▶</button>
+          <button id="next" class="icon-button" title="下一帧">→</button>
+          <label class="control">速度 <input id="speed" type="range" min="25" max="300" value="100"><span id="speed-value">1.00×</span></label>
+          <label class="control">缩放 <input id="zoom" type="range" min="1" max="6" step="1" value="3"><span id="zoom-value">3×</span></label>
+          <span class="grow"></span>
+          <div id="background" class="seg" aria-label="舞台背景">
+            <button data-bg="checker" class="active">格</button><button data-bg="white">白</button><button data-bg="black">黑</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="inspector">
+        <div class="section">
+          <p class="eyebrow">File diagnostics</p>
+          <div id="metrics" class="metric-grid"><div class="sub">暂无数据</div></div>
+          <div id="error" class="error"></div>
+        </div>
+        <div class="section">
+          <p class="eyebrow">Selected clip</p>
+          <div id="clip-detail" class="metric-grid"><div class="sub">暂无数据</div></div>
+        </div>
+        <div class="section">
+          <p class="eyebrow">Frames</p>
+          <div style="overflow:auto"><table><thead><tr><th>#</th><th>type</th><th>ms</th><th>bytes</th></tr></thead><tbody id="frames"></tbody></table></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    'use strict';
+    const HEADER = 40, CLIP_ENTRY = 56, FRAME_ENTRY = 16, RGB565_BYTES = 2;
+    const state = { asset: null, clipIndex: 0, localFrame: 0, playing: false, startedAt: 0, pausedElapsed: 0, speed: 1, raf: 0 };
+    const $ = (id) => document.getElementById(id);
+    const canvas = $('canvas'), ctx = canvas.getContext('2d', { alpha: false });
+
+    class PixaError extends Error {}
+    function requireRange(view, offset, length, label) {
+      if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(length) || offset < 0 || length < 0 || offset > view.byteLength || length > view.byteLength - offset) throw new PixaError(`Invalid PIXA ${label} range.`);
+    }
+    function ascii(view, offset, length) {
+      let value = ''; for (let i = 0; i < length; i++) value += String.fromCharCode(view.getUint8(offset + i)); return value;
+    }
+    function text(view, offset, max) {
+      let length = 0; while (length < max && view.getUint8(offset + length) !== 0) length++;
+      if (length === max) throw new PixaError('PIXA clip name is not NUL-terminated.');
+      return new TextDecoder().decode(new Uint8Array(view.buffer, view.byteOffset + offset, length));
+    }
+    function parsePixa(buffer) {
+      const view = new DataView(buffer);
+      if (view.byteLength < HEADER) throw new PixaError('Invalid PIXA file: header is too short.');
+      if (ascii(view, 0, 4) !== 'PIXA') throw new PixaError('Invalid PIXA magic.');
+      const version = view.getUint16(4, true), headerSize = view.getUint16(6, true);
+      if (version !== 1) throw new PixaError(`Unsupported PIXA version ${version}.`);
+      if (headerSize !== HEADER) throw new PixaError(`Invalid PIXA header size ${headerSize}.`);
+      const width = view.getUint16(8, true), height = view.getUint16(10, true), colorCount = view.getUint16(12, true), clipCount = view.getUint16(14, true);
+      if (width === 0 || height === 0) throw new PixaError('Invalid PIXA canvas size.');
+      const frameCount = view.getUint32(16, true), paletteOffset = view.getUint32(20, true), clipOffset = view.getUint32(24, true), frameOffset = view.getUint32(28, true), payloadOffset = view.getUint32(32, true), payloadLength = view.getUint32(36, true);
+      requireRange(view, paletteOffset, colorCount * 2, 'palette');
+      requireRange(view, clipOffset, clipCount * CLIP_ENTRY, 'clip table');
+      requireRange(view, frameOffset, frameCount * FRAME_ENTRY, 'frame table');
+      requireRange(view, payloadOffset, payloadLength, 'payload');
+      const clips = [];
+      for (let i = 0; i < clipCount; i++) {
+        const base = clipOffset + i * CLIP_ENTRY, firstFrame = view.getUint32(base + 36, true), count = view.getUint32(base + 40, true);
+        if (firstFrame > frameCount || count > frameCount - firstFrame) throw new PixaError('Invalid PIXA clip frame range.');
+        clips.push({ name: text(view, base, 32), anchorX: view.getInt16(base + 32, true), anchorY: view.getInt16(base + 34, true), firstFrame, frameCount: count, totalDurationMs: view.getUint32(base + 44, true), loop: (view.getUint16(base + 48, true) & 1) !== 0 });
+      }
+      const frames = [];
+      for (let i = 0; i < frameCount; i++) {
+        const base = frameOffset + i * FRAME_ENTRY, payload = view.getUint32(base + 4, true), length = view.getUint32(base + 8, true), typeCode = view.getUint8(base + 2);
+        if (payload > payloadLength || length > payloadLength - payload) throw new PixaError('Invalid PIXA frame payload range.');
+        frames.push({ durationMs: view.getUint16(base, true), typeCode, encoding: view.getUint8(base + 3), type: typeCode === 0 ? 'key' : typeCode === 1 ? 'diff' : 'unknown', payloadOffset: payload, payloadLength: length });
+      }
+      return { bytes: new Uint8Array(buffer), byteLength: buffer.byteLength, version, width, height, colorCount, clipCount, frameCount, payloadOffset, payloadLength, clips, frames };
+    }
+    function renderFrame(index) {
+      const asset = state.asset, frame = asset.frames[index];
+      if (!frame) throw new PixaError(`PIXA frame ${index} does not exist.`);
+      if (frame.type !== 'key') throw new PixaError(`Frame ${index} is ${frame.type}; the editor currently renders key frames only.`);
+      const expected = asset.width * asset.height * RGB565_BYTES;
+      if (frame.encoding !== 0 && frame.encoding !== 2) throw new PixaError(`Frame ${index} uses unsupported key-frame encoding ${frame.encoding}.`);
+      if (frame.payloadLength !== expected) throw new PixaError(`Frame payload is ${frame.payloadLength} bytes; expected ${expected}.`);
+      const start = asset.payloadOffset + frame.payloadOffset, rgba = new Uint8ClampedArray(asset.width * asset.height * 4);
+      for (let pixel = 0; pixel < asset.width * asset.height; pixel++) {
+        const source = start + pixel * 2, value = asset.bytes[source] | (asset.bytes[source + 1] << 8), target = pixel * 4;
+        rgba[target] = ((value >> 11) & 31) * 255 / 31; rgba[target + 1] = ((value >> 5) & 63) * 255 / 63; rgba[target + 2] = (value & 31) * 255 / 31; rgba[target + 3] = 255;
+      }
+      canvas.width = asset.width; canvas.height = asset.height; ctx.putImageData(new ImageData(rgba, asset.width, asset.height), 0, 0);
+      [...$('frames').rows].forEach((row) => row.classList.toggle('current', Number(row.dataset.frame) === index));
+    }
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
+    }
+    function metric(label, value) { return `<div class="metric"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></div>`; }
+    function selectClip(index) {
+      state.clipIndex = index; state.localFrame = 0; state.pausedElapsed = 0; state.startedAt = performance.now();
+      const clip = state.asset.clips[index];
+      [...document.querySelectorAll('.clip')].forEach((el, i) => el.classList.toggle('active', i === index));
+      $('clip-detail').innerHTML = metric('name', clip.name || '—') + metric('frames', clip.frameCount) + metric('duration', `${clip.totalDurationMs} ms`) + metric('loop', clip.loop ? 'yes' : 'no') + metric('anchor x', clip.anchorX) + metric('anchor y', clip.anchorY);
+      $('frames').innerHTML = Array.from({ length: clip.frameCount }, (_, local) => {
+        const index = clip.firstFrame + local, frame = state.asset.frames[index];
+        return `<tr data-frame="${index}"><td>${index}</td><td>${frame.type}</td><td>${frame.durationMs}</td><td>${frame.payloadLength}</td></tr>`;
+      }).join('');
+      showLocalFrame(0);
+    }
+    function showLocalFrame(local) {
+      const clip = state.asset.clips[state.clipIndex]; if (!clip || !clip.frameCount) return;
+      state.localFrame = (local + clip.frameCount) % clip.frameCount;
+      try { renderFrame(clip.firstFrame + state.localFrame); $('error').textContent = ''; } catch (error) { $('error').textContent = error.message; }
+    }
+    function refreshPlayButton() { $('play').textContent = state.playing ? '❚❚' : '▶'; }
+    function setPlaying(playing) {
+      if (!state.asset) return; state.playing = playing;
+      if (playing) state.startedAt = performance.now() - state.pausedElapsed / state.speed;
+      else state.pausedElapsed = (performance.now() - state.startedAt) * state.speed;
+      refreshPlayButton();
+    }
+    function localFrameForElapsed(clip, elapsed) {
+      let remaining = elapsed;
+      for (let local = 0; local < clip.frameCount; local++) {
+        const duration = state.asset.frames[clip.firstFrame + local].durationMs;
+        if (duration <= 0 || remaining < duration) return local;
+        remaining -= duration;
+      }
+      return clip.frameCount - 1;
+    }
+    function tick(now) {
+      if (state.asset && state.playing) {
+        const clip = state.asset.clips[state.clipIndex];
+        if (clip && clip.frameCount) {
+          const duration = Math.max(clip.totalDurationMs, clip.frameCount), raw = (now - state.startedAt) * state.speed;
+          const elapsed = clip.loop ? ((raw % duration) + duration) % duration : Math.min(raw, duration - 1);
+          const local = localFrameForElapsed(clip, elapsed);
+          if (local !== state.localFrame) showLocalFrame(local);
+          if (!clip.loop && raw >= duration) setPlaying(false);
+        }
+      }
+      state.raf = requestAnimationFrame(tick);
+    }
+    async function loadFile(file) {
+      try {
+        const asset = parsePixa(await file.arrayBuffer()); state.asset = asset;
+        $('filename').textContent = file.name; $('error').textContent = ''; $('empty').hidden = true; canvas.hidden = false;
+        $('status').textContent = `PIXA v${asset.version} · ${asset.clipCount} clips · ${asset.frameCount} frames`; $('status-dot').classList.add('ready');
+        $('metrics').innerHTML = metric('canvas', `${asset.width} × ${asset.height}`) + metric('file', formatBytes(asset.byteLength)) + metric('clips', asset.clipCount) + metric('frames', asset.frameCount) + metric('payload', formatBytes(asset.payloadLength)) + metric('encoding', 'RGB565');
+        const clips = $('clips'); clips.replaceChildren();
+        if (asset.clips.length) {
+          asset.clips.forEach((clip, index) => {
+            const button = document.createElement('button'), name = document.createElement('span'), count = document.createElement('span');
+            button.className = 'clip'; button.dataset.index = String(index);
+            name.textContent = clip.name || `clip-${index}`;
+            count.className = 'pill'; count.textContent = `${clip.frameCount}f`;
+            button.append(name, count);
+            button.addEventListener('click', () => selectClip(index));
+            clips.append(button);
+          });
+        } else {
+          const message = document.createElement('span'); message.className = 'sub'; message.textContent = '该文件没有 clip'; clips.append(message);
+        }
+        const zoom = Number($('zoom').value); canvas.style.width = `${asset.width * zoom}px`; canvas.style.height = `${asset.height * zoom}px`;
+        if (asset.clips.length) { setPlaying(true); selectClip(Math.max(0, asset.clips.findIndex((clip) => clip.name === 'idle'))); }
+        else { state.playing = false; refreshPlayButton(); }
+      } catch (error) {
+        state.asset = null; $('status').textContent = '解析失败'; $('status-dot').classList.remove('ready'); $('error').textContent = error instanceof Error ? error.message : String(error);
+      }
+    }
+    function formatBytes(value) { return value < 1024 ? `${value} B` : value < 1048576 ? `${(value / 1024).toFixed(1)} KiB` : `${(value / 1048576).toFixed(2)} MiB`; }
+    $('file').addEventListener('change', (event) => event.target.files[0] && loadFile(event.target.files[0]));
+    for (const type of ['dragenter', 'dragover']) $('drop').addEventListener(type, (event) => { event.preventDefault(); $('drop').classList.add('drag'); });
+    for (const type of ['dragleave', 'drop']) $('drop').addEventListener(type, (event) => { event.preventDefault(); $('drop').classList.remove('drag'); });
+    $('drop').addEventListener('drop', (event) => event.dataTransfer.files[0] && loadFile(event.dataTransfer.files[0]));
+    $('play').addEventListener('click', () => setPlaying(!state.playing));
+    $('prev').addEventListener('click', () => { setPlaying(false); showLocalFrame(state.localFrame - 1); });
+    $('next').addEventListener('click', () => { setPlaying(false); showLocalFrame(state.localFrame + 1); });
+    $('speed').addEventListener('input', (event) => { state.speed = Number(event.target.value) / 100; $('speed-value').textContent = `${state.speed.toFixed(2)}×`; if (state.playing) state.startedAt = performance.now() - state.pausedElapsed / state.speed; });
+    $('zoom').addEventListener('input', (event) => { const zoom = Number(event.target.value); canvas.style.width = `${state.asset ? state.asset.width * zoom : 0}px`; canvas.style.height = `${state.asset ? state.asset.height * zoom : 0}px`; $('zoom-value').textContent = `${zoom}×`; });
+    $('background').addEventListener('click', (event) => { const button = event.target.closest('button'); if (!button) return; $('stage').className = `stage ${button.dataset.bg === 'checker' ? '' : button.dataset.bg}`; [...$('background').children].forEach((item) => item.classList.toggle('active', item === button)); });
+    window.addEventListener('keydown', (event) => {
+      if (event.target.matches('input')) return;
+      if (event.code === 'Space') { event.preventDefault(); setPlaying(!state.playing); }
+      if (event.code === 'ArrowLeft') { event.preventDefault(); setPlaying(false); showLocalFrame(state.localFrame - 1); }
+      if (event.code === 'ArrowRight') { event.preventDefault(); setPlaying(false); showLocalFrame(state.localFrame + 1); }
+    });
+    new ResizeObserver(() => { if (!state.asset) return; const zoom = Number($('zoom').value); canvas.style.width = `${state.asset.width * zoom}px`; canvas.style.height = `${state.asset.height * zoom}px`; }).observe($('stage'));
+    refreshPlayButton(); state.raf = requestAnimationFrame(tick);
+  </script>
+</body>
+</html>
