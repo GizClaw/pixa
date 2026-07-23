@@ -198,13 +198,6 @@ PixaAsset parsePixa(Uint8List input) {
     final name = _readNullTerminatedUtf8(bytes, base, pixaClipNameSize);
     final firstFrame = data.getUint32(base + 36, Endian.little);
     final clipFrameCount = data.getUint32(base + 40, Endian.little);
-    if (clipFrameCount == 0) {
-      throw PixaParseException(
-        'PIXA clip "$name" contains no frames',
-        bytes,
-        base,
-      );
-    }
     if (firstFrame > frameCount || clipFrameCount > frameCount - firstFrame) {
       throw PixaParseException(
         'PIXA clip "$name" references frames outside the frame table',

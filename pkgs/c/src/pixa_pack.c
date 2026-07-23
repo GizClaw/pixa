@@ -635,6 +635,12 @@ int pixa_pack_dir_to_file(const char *dir_path, const char *out_path,
       clip_offset + (uint32_t)options->clip_count * PIXA_CLIP_ENTRY_SIZE;
   payload_offset = frame_offset + frame_count * PIXA_FRAME_ENTRY_SIZE;
 
+  if (payload.len > UINT32_MAX) {
+    free_clip_states(clips, options->clip_count, alloc);
+    vec_free(&payload);
+    return PIXA_ERR_INVALID_FORMAT;
+  }
+
   if ((rc = vec_append_zero(&out, payload_offset)) != PIXA_OK) {
     free_clip_states(clips, options->clip_count, alloc);
     vec_free(&payload);

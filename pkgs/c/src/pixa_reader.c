@@ -66,6 +66,16 @@ int pixa_open_memory(const void *data, size_t len, pixa_asset_t *out_asset) {
       !require_range(len, asset.payload_offset, asset.payload_len)) {
     return PIXA_ERR_INVALID_FORMAT;
   }
+  for (uint16_t i = 0u; i < asset.clip_count; ++i) {
+    pixa_clip_t clip;
+    if (pixa_clip_at(&asset, i, &clip) != PIXA_OK)
+      return PIXA_ERR_INVALID_FORMAT;
+  }
+  for (uint32_t i = 0u; i < asset.frame_count; ++i) {
+    pixa_frame_t frame;
+    if (pixa_frame_at(&asset, i, &frame) != PIXA_OK)
+      return PIXA_ERR_INVALID_FORMAT;
+  }
 
   *out_asset = asset;
   return PIXA_OK;

@@ -71,7 +71,7 @@ void main() {
 
     final emptyClip = makePixa();
     ByteData.sublistView(emptyClip).setUint32(82, 0, Endian.little);
-    expect(() => parsePixa(emptyClip), throwsA(isA<PixaParseException>()));
+    expect(parsePixa(emptyClip).clips.single.frameCount, 0);
   });
 
   test('validates petdef and badgedef pixa contracts', () {
