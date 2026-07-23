@@ -9,7 +9,7 @@ import 'pixa_test_data.dart';
 void main() {
   test('parses the committed shared asset', () async {
     final asset = parsePixa(
-      await File('../../assets/dewey.pixa').readAsBytes(),
+      await File('../../assets/codex-pets/dewey.pixa').readAsBytes(),
     );
     expect(asset.canvas.width, greaterThan(0));
     expect(asset.canvas.height, greaterThan(0));
