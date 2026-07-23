@@ -8,9 +8,9 @@ The canonical format contract is [docs/format.md](docs/format.md), and the C pla
 
 The repository root is the Go module `github.com/GizClaw/pixa`; language
 implementations live in `pkgs/`. The editor is a self-contained Go command:
-`make editor` runs it without requiring a preinstalled Python executable. It
-currently provides preview and inspection only; editing will be added to this
-same command. To install it for repeated use, run
+`make editor` starts it and opens the browser without requiring a preinstalled
+Python executable. It currently provides preview and inspection only; editing
+will be added to this same command. To install it for repeated use, run
 `go install github.com/GizClaw/pixa/cmd/pixa-editor@latest`.
 
 ## Local checks
