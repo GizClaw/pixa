@@ -57,6 +57,9 @@ int pixa_open_memory(const void *data, size_t len, pixa_asset_t *out_asset) {
   if (asset.canvas.width == 0u || asset.canvas.height == 0u) {
     return PIXA_ERR_INVALID_FORMAT;
   }
+  if (asset.clip_count == 0u) {
+    return PIXA_ERR_INVALID_FORMAT;
+  }
   if (!require_range(len, asset.palette_offset,
                      (size_t)asset.color_count * 2u) ||
       !require_range(len, asset.clip_offset,

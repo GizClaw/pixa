@@ -194,7 +194,7 @@ int pixa_decode_clip_frame_bgra(const pixa_asset_t *asset,
     return rc;
   }
   if (clip.frame_count == 0u) {
-    return PIXA_OK;
+    return PIXA_ERR_FRAME_NOT_FOUND;
   }
   if (out_len < pixa_canvas_bgra_bytes(asset->canvas)) {
     return PIXA_ERR_OUTPUT_TOO_SMALL;
