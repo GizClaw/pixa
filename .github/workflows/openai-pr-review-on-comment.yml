@@ -12,7 +12,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
   pull-requests: write
 
 concurrency:
@@ -30,7 +29,6 @@ jobs:
       number: ${{ steps.pr.outputs.number }}
       base_sha: ${{ steps.pr.outputs.base_sha }}
       head_sha: ${{ steps.pr.outputs.head_sha }}
-      request_comment_id: ${{ steps.pr.outputs.request_comment_id }}
     steps:
       - name: Authorize explicit review request
         id: pr
@@ -54,7 +52,6 @@ jobs:
                 core.setOutput('eligible', 'false');
                 return;
               }
-              core.setOutput('request_comment_id', String(context.payload.comment.id));
             }
             const number = Number(manual ? process.env.REQUESTED_PULL_NUMBER : context.payload.issue.number);
             if (!Number.isSafeInteger(number) || number < 1) {
@@ -84,6 +81,5 @@ jobs:
       pull_request_number: ${{ needs.pull-request.outputs.number }}
       base_sha: ${{ needs.pull-request.outputs.base_sha }}
       head_sha: ${{ needs.pull-request.outputs.head_sha }}
-      request_comment_id: ${{ needs.pull-request.outputs.request_comment_id }}
     secrets:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
