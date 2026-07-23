@@ -50,14 +50,17 @@ exceed the header frame count.
 | --- | --- | --- |
 | 0 | 2 | duration in milliseconds |
 | 2 | 1 | type: `0` key, `1` diff, other unsupported |
-| 3 | 1 | reserved |
+| 3 | 1 | key-frame encoding: `0` legacy inferred, `1` palette RLE, `2` RGB565 |
 | 4 | 4 | offset relative to payload offset |
 | 8 | 4 | payload length |
 | 12 | 4 | reserved |
 
 Each frame payload range must be inside the declared payload. A key frame may
 be a row-major RGB565 canvas of `width * height * 2` bytes or a palette-RLE
-canvas; the C package supports both. A diff frame describes RLE rectangles on
-top of the preceding decoded frame. Consumers that only need container
-metadata must preserve the frame type and reject unsupported encodings at
-render time.
+canvas; the C package supports both. New writers set the key-frame encoding
+byte explicitly so a palette-RLE payload that happens to be canvas-sized is
+not mistaken for RGB565. For legacy key frames with encoding `0`, C runtimes
+infer RGB565 only from a canvas-sized payload and otherwise use palette RLE.
+A diff frame describes RLE rectangles on top of the preceding decoded frame.
+Consumers that only need container metadata must preserve the frame type and
+reject unsupported encodings at render time.

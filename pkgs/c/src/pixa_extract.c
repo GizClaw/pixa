@@ -258,7 +258,6 @@ static int write_index(const pixa_asset_t *asset, const char *dir_path,
         .name_len = source.name_len,
         .anchor = source.anchor,
         .loop = source.loop,
-        .total_duration_ms = source.total_duration_ms,
         .frame_count = source.frame_count,
         .frame_bytes = (uint32_t)pixa_canvas_argb4444_bytes(asset->canvas),
         .durations_le = durations + (size_t)duration_cursor * 2u,
@@ -269,8 +268,13 @@ static int write_index(const pixa_asset_t *asset, const char *dir_path,
       if ((rc = pixa_frame_at(asset, source.first_frame + frame_index,
                               &frame)) != PIXA_OK)
         goto cleanup;
-      write_u16_le(durations + (size_t)duration_cursor * 2u,
-                   frame.duration_ms == 0u ? 1u : frame.duration_ms);
+      uint16_t duration = frame.duration_ms == 0u ? 1u : frame.duration_ms;
+      if (UINT32_MAX - clips[i].total_duration_ms < duration) {
+        rc = PIXA_ERR_INVALID_FORMAT;
+        goto cleanup;
+      }
+      write_u16_le(durations + (size_t)duration_cursor * 2u, duration);
+      clips[i].total_duration_ms += duration;
       ++duration_cursor;
     }
   }

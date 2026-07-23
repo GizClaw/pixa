@@ -23,7 +23,8 @@ static void write_u32(uint8_t *data, size_t offset, uint32_t value) {
 
 static size_t build_asset(uint8_t *data, size_t capacity,
                           const uint16_t *palette, uint16_t color_count,
-                          const uint8_t *payload, size_t payload_len) {
+                          const uint8_t *payload, size_t payload_len,
+                          uint8_t frame_encoding) {
   const size_t palette_offset = HEADER_SIZE;
   const size_t clip_offset = palette_offset + (size_t)color_count * 2u;
   const size_t frame_offset = clip_offset + CLIP_SIZE;
@@ -54,6 +55,7 @@ static size_t build_asset(uint8_t *data, size_t capacity,
   write_u16(data, clip_offset + 48u, 1u);
   write_u16(data, frame_offset, 100u);
   data[frame_offset + 2u] = 0u;
+  data[frame_offset + 3u] = frame_encoding;
   write_u32(data, frame_offset + 4u, 0u);
   write_u32(data, frame_offset + 8u, (uint32_t)payload_len);
   memcpy(data + payload_offset, payload, payload_len);
@@ -64,8 +66,8 @@ static void test_gizclaw_rgb565_key_frame(void) {
   uint8_t data[128];
   const uint16_t palette[] = {0u};
   const uint8_t payload[] = {0x00u, 0xf8u, 0x1fu, 0x00u};
-  const size_t len =
-      build_asset(data, sizeof(data), palette, 1u, payload, sizeof(payload));
+  const size_t len = build_asset(data, sizeof(data), palette, 1u, payload,
+                                 sizeof(payload), 0u);
   pixa_asset_t asset;
   uint8_t bgra[8];
   assert(pixa_open_memory(data, len, &asset) == PIXA_OK);
@@ -79,8 +81,8 @@ static void test_palette_rle_key_frame(void) {
   uint8_t data[128];
   const uint16_t palette[] = {0u, 0xf800u};
   const uint8_t payload[] = {2u, 1u};
-  const size_t len =
-      build_asset(data, sizeof(data), palette, 2u, payload, sizeof(payload));
+  const size_t len = build_asset(data, sizeof(data), palette, 2u, payload,
+                                 sizeof(payload), 1u);
   pixa_asset_t asset;
   uint8_t bgra[8];
   assert(pixa_open_memory(data, len, &asset) == PIXA_OK);
@@ -94,8 +96,8 @@ static void test_rgb565_key_frame_with_palette(void) {
   uint8_t data[128];
   const uint16_t palette[] = {0u, 0xf800u};
   const uint8_t payload[] = {0x00u, 0xf8u, 0x1fu, 0x00u};
-  const size_t len =
-      build_asset(data, sizeof(data), palette, 2u, payload, sizeof(payload));
+  const size_t len = build_asset(data, sizeof(data), palette, 2u, payload,
+                                 sizeof(payload), 2u);
   pixa_asset_t asset;
   uint8_t bgra[8];
   assert(pixa_open_memory(data, len, &asset) == PIXA_OK);
@@ -105,9 +107,25 @@ static void test_rgb565_key_frame_with_palette(void) {
   assert(memcmp(bgra, expected, sizeof(expected)) == 0);
 }
 
+static void test_palette_rle_key_frame_with_raw_size(void) {
+  uint8_t data[128];
+  const uint16_t palette[] = {0u, 0xf800u};
+  const uint8_t payload[] = {1u, 1u, 1u, 0u};
+  const size_t len = build_asset(data, sizeof(data), palette, 2u, payload,
+                                 sizeof(payload), 1u);
+  pixa_asset_t asset;
+  uint8_t bgra[8];
+  assert(pixa_open_memory(data, len, &asset) == PIXA_OK);
+  assert(pixa_decode_clip_frame_bgra(&asset, "idle", 0u, bgra, sizeof(bgra)) ==
+         PIXA_OK);
+  const uint8_t expected[] = {0u, 0u, 255u, 255u, 0u, 0u, 0u, 255u};
+  assert(memcmp(bgra, expected, sizeof(expected)) == 0);
+}
+
 int main(void) {
   test_gizclaw_rgb565_key_frame();
   test_palette_rle_key_frame();
   test_rgb565_key_frame_with_palette();
+  test_palette_rle_key_frame_with_raw_size();
   return 0;
 }

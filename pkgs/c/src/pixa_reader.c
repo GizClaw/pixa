@@ -164,6 +164,7 @@ int pixa_frame_at(const pixa_asset_t *asset, uint32_t index,
 
   out_frame->duration_ms = read_u16(asset->data, base + 0u);
   out_frame->frame_type = asset->data[base + 2u];
+  out_frame->encoding = asset->data[base + 3u];
   out_frame->payload_offset = payload_offset;
   out_frame->payload_len = payload_len;
   return PIXA_OK;

@@ -296,9 +296,6 @@ static int read_file_alloc(const pixa_osal_api_t *fs, const char *path,
       vec_free(&vec);
       return rc;
     }
-    if (n < sizeof(chunk)) {
-      break;
-    }
   }
 
   rc = pixa_fs_close(fs, file);
@@ -709,6 +706,7 @@ int pixa_pack_dir_to_file(const char *dir_path, const char *out_path,
         write_u16(out.data, frame_base + 0u,
                   read_le16(clip->dir_clip.durations_le, (size_t)frame * 2u));
         out.data[frame_base + 2u] = PIXA_FRAME_KEY;
+        out.data[frame_base + 3u] = 1u;
         write_u32(out.data, frame_base + 4u, (uint32_t)payload_cursor);
         write_u32(out.data, frame_base + 8u, rle_len);
         payload_cursor = scan;

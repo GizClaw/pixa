@@ -28,7 +28,9 @@ func TestGoFilesystemBacksOSAL(t *testing.T) {
 
 func TestGoFilesystemExtractsPIXA(t *testing.T) {
 	root := t.TempDir()
-	if got := extract(root, "sample", samplePIXA()); got != 0 {
+	data := samplePIXA()
+	binary.LittleEndian.PutUint16(data[98:], 0)
+	if got := extract(root, "sample", data); got != 0 {
 		t.Fatalf("extract = %d", got)
 	}
 	for _, path := range []string{

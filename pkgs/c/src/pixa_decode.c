@@ -6,6 +6,9 @@
 
 #define PIXA_FRAME_KEY 0u
 #define PIXA_FRAME_DIFF 1u
+#define PIXA_KEY_ENCODING_LEGACY 0u
+#define PIXA_KEY_ENCODING_PALETTE_RLE 1u
+#define PIXA_KEY_ENCODING_RGB565 2u
 
 static uint16_t read_u16(const uint8_t *data, size_t offset) {
   return (uint16_t)data[offset] | ((uint16_t)data[offset + 1u] << 8);
@@ -28,14 +31,6 @@ static int palette_color(const pixa_asset_t *asset, uint8_t index,
 }
 
 static void write_rgb565_as_bgra(uint16_t color, uint8_t *out) {
-  if (color == 0u) {
-    out[0] = 0u;
-    out[1] = 0u;
-    out[2] = 0u;
-    out[3] = 0u;
-    return;
-  }
-
   {
     uint8_t r5 = (uint8_t)((color >> 11) & 0x1fu);
     uint8_t g6 = (uint8_t)((color >> 5) & 0x3fu);
@@ -165,13 +160,19 @@ int pixa_apply_clip_frame_bgra(const pixa_asset_t *asset,
 
   if (frame.frame_type == PIXA_FRAME_KEY) {
     memset(out_bgra, 0, pixa_canvas_bgra_bytes(asset->canvas));
-    if (frame.payload_len == pixa_canvas_argb4444_bytes(asset->canvas)) {
+    if (frame.encoding == PIXA_KEY_ENCODING_RGB565 ||
+        (frame.encoding == PIXA_KEY_ENCODING_LEGACY &&
+         frame.payload_len == pixa_canvas_argb4444_bytes(asset->canvas))) {
       return decode_rgb565_frame_bgra(asset, payload, frame.payload_len,
                                       out_bgra);
     }
-    return decode_rle_rect_bgra(asset, payload, frame.payload_len, 0u, 0u,
-                                asset->canvas.width, asset->canvas.height,
-                                out_bgra);
+    if (frame.encoding == PIXA_KEY_ENCODING_PALETTE_RLE ||
+        frame.encoding == PIXA_KEY_ENCODING_LEGACY) {
+      return decode_rle_rect_bgra(asset, payload, frame.payload_len, 0u, 0u,
+                                  asset->canvas.width, asset->canvas.height,
+                                  out_bgra);
+    }
+    return PIXA_ERR_UNSUPPORTED_FRAME;
   }
   if (frame.frame_type == PIXA_FRAME_DIFF) {
     return apply_diff_bgra(asset, payload, frame.payload_len, out_bgra);

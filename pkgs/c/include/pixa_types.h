@@ -58,6 +58,7 @@ typedef struct pixa_clip {
 typedef struct pixa_frame {
   uint16_t duration_ms;
   uint8_t frame_type;
+  uint8_t encoding;
   uint32_t payload_offset;
   uint32_t payload_len;
 } pixa_frame_t;
