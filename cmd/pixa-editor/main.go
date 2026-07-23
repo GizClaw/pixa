@@ -1,4 +1,4 @@
-// Command pixa-reviewer serves the local PIXA animation reviewer.
+// Command pixa-editor serves the local PIXA animation editor.
 package main
 
 import (
@@ -10,16 +10,16 @@ import (
 )
 
 //go:embed web/index.html
-var reviewerFiles embed.FS
+var editorFiles embed.FS
 
 func main() {
 	address := flag.String("addr", "127.0.0.1:4173", "HTTP listen address")
 	flag.Parse()
 
-	content, err := fs.Sub(reviewerFiles, "web")
+	content, err := fs.Sub(editorFiles, "web")
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("PIXA reviewer listening on http://%s", *address)
+	log.Printf("PIXA editor listening on http://%s", *address)
 	log.Fatal(http.ListenAndServe(*address, http.FileServer(http.FS(content))))
 }

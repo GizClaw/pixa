@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>GizClaw PIXA Inspector</title>
+  <title>GizClaw PIXA Editor</title>
   <style>
     :root {
       color-scheme: dark;
@@ -135,7 +135,7 @@
     <header>
       <div class="brand">
         <div class="mark">PX</div>
-        <div><h1>PIXA Inspector</h1><div class="sub">GizClaw animation review utility</div></div>
+        <div><h1>PIXA Editor</h1><div class="sub">GizClaw animation editor · preview mode</div></div>
       </div>
       <div class="status"><span id="status-dot" class="dot"></span><span id="status">等待 PIXA 文件</span></div>
     </header>
@@ -163,7 +163,7 @@
 
       <section class="stage-wrap">
         <div id="stage" class="stage">
-          <div id="empty" class="empty"><b>Review animation frame by frame.</b>选择仓库中的 PIXA 文件，检查真实 RGB565 渲染、clip 循环和帧元数据。</div>
+          <div id="empty" class="empty"><b>Preview animation frame by frame.</b>选择仓库中的 PIXA 文件，检查真实 RGB565 渲染、clip 循环和帧元数据。</div>
           <canvas id="canvas" hidden></canvas>
         </div>
         <div class="controls">
@@ -245,7 +245,7 @@
     function renderFrame(index) {
       const asset = state.asset, frame = asset.frames[index];
       if (!frame) throw new PixaError(`PIXA frame ${index} does not exist.`);
-      if (frame.type !== 'key') throw new PixaError(`Frame ${index} is ${frame.type}; browser inspector currently renders key frames only.`);
+      if (frame.type !== 'key') throw new PixaError(`Frame ${index} is ${frame.type}; the editor currently renders key frames only.`);
       const expected = asset.width * asset.height * RGB565_BYTES;
       if (frame.payloadLength < expected) throw new PixaError(`Frame payload is ${frame.payloadLength} bytes; expected ${expected}.`);
       const start = asset.payloadOffset + frame.payloadOffset, rgba = new Uint8ClampedArray(asset.width * asset.height * 4);

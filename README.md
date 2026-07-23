@@ -7,10 +7,11 @@ The canonical format contract is [docs/format.md](docs/format.md), and the C pla
 `assets/dewey.pixa` is the shared PIXA example used by the Go, Flutter, and TypeScript integration tests.
 
 The repository root is the Go module `github.com/GizClaw/pixa`; language
-implementations live in `pkgs/`. The reviewer is a self-contained Go command:
-`make reviewer` runs it without requiring a preinstalled Python executable. To
-install it for repeated use, run
-`go install github.com/GizClaw/pixa/cmd/pixa-reviewer@latest`.
+implementations live in `pkgs/`. The editor is a self-contained Go command:
+`make editor` runs it without requiring a preinstalled Python executable. It
+currently provides preview and inspection only; editing will be added to this
+same command. To install it for repeated use, run
+`go install github.com/GizClaw/pixa/cmd/pixa-editor@latest`.
 
 ## Local checks
 
