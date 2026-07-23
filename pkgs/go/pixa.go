@@ -25,6 +25,7 @@ type Clip struct {
 // Frame is one payload reference in the PIXA frame table.
 type Frame struct {
 	DurationMS                   uint16
+	Encoding                     uint8
 	Type                         uint8
 	PayloadOffset, PayloadLength uint32
 }
@@ -110,6 +111,7 @@ func Parse(data []byte) (Asset, error) {
 		}
 		asset.Frames[i] = Frame{
 			DurationMS:    binary.LittleEndian.Uint16(data[base:]),
+			Encoding:      data[base+3],
 			Type:          data[base+2],
 			PayloadOffset: off,
 			PayloadLength: size,

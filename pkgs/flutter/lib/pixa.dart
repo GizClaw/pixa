@@ -405,6 +405,12 @@ void _validatePetDefPixa(PixaAsset asset) {
       asset.bytes,
     );
   }
+  if (findPixaClip(asset, 'idle') == null) {
+    throw PixaParseException(
+      'PetDef PIXA must contain an idle clip',
+      asset.bytes,
+    );
+  }
 }
 
 void _validateBadgeDefPixa(PixaAsset asset) {

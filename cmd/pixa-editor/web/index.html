@@ -223,6 +223,7 @@
       if (version !== 1) throw new PixaError(`Unsupported PIXA version ${version}.`);
       if (headerSize !== HEADER) throw new PixaError(`Invalid PIXA header size ${headerSize}.`);
       const width = view.getUint16(8, true), height = view.getUint16(10, true), colorCount = view.getUint16(12, true), clipCount = view.getUint16(14, true);
+      if (width === 0 || height === 0) throw new PixaError('Invalid PIXA canvas size.');
       const frameCount = view.getUint32(16, true), paletteOffset = view.getUint32(20, true), clipOffset = view.getUint32(24, true), frameOffset = view.getUint32(28, true), payloadOffset = view.getUint32(32, true), payloadLength = view.getUint32(36, true);
       requireRange(view, paletteOffset, colorCount * 2, 'palette');
       requireRange(view, clipOffset, clipCount * CLIP_ENTRY, 'clip table');

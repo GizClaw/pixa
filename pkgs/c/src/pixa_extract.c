@@ -317,7 +317,7 @@ cleanup:
 static int write_clip_frames(const pixa_asset_t *asset, const pixa_clip_t *clip,
                              const char *clips_dir, const pixa_osal_api_t *fs,
                              const pixa_alloc_t *alloc,
-                             pixa_extract_stats_t *stats,
+                             pixa_extract_stats_t *stats, uint32_t total_frames,
                              pixa_extract_progress_fn progress,
                              void *progress_user) {
   char frames_path[PIXA_PATH_MAX];
@@ -376,8 +376,8 @@ static int write_clip_frames(const pixa_asset_t *asset, const pixa_clip_t *clip,
     }
     stats->frame_count += 1u;
     stats->payload_len += frame_len;
-    if (progress != NULL && stats->frame_count < asset->frame_count) {
-      progress(progress_user, (uint32_t)stats->frame_count, asset->frame_count);
+    if (progress != NULL && stats->frame_count < total_frames) {
+      progress(progress_user, (uint32_t)stats->frame_count, total_frames);
     }
   }
 
@@ -405,6 +405,7 @@ extract_memory_to_dir(const void *data, size_t len, const char *dir_path,
   pixa_extract_stats_t stats;
   pixa_alloc_t alloc = normalized_alloc(alloc_arg);
   char clips_dir[PIXA_PATH_MAX];
+  uint32_t total_frames = 0u;
   int rc;
 
   if (data == NULL || len == 0u || dir_path == NULL || fs == NULL) {
@@ -416,6 +417,14 @@ extract_memory_to_dir(const void *data, size_t len, const char *dir_path,
   }
 
   memset(&stats, 0, sizeof(stats));
+  for (uint16_t i = 0u; i < asset.clip_count; ++i) {
+    pixa_clip_t clip;
+    if ((rc = pixa_clip_at(&asset, i, &clip)) != PIXA_OK)
+      return rc;
+    if (clip.frame_count > UINT32_MAX - total_frames)
+      return PIXA_ERR_INVALID_FORMAT;
+    total_frames += clip.frame_count;
+  }
   if ((rc = map_fs(pixa_fs_make_dir_all(fs, dir_path))) != PIXA_OK) {
     return rc;
   }
@@ -444,7 +453,8 @@ extract_memory_to_dir(const void *data, size_t len, const char *dir_path,
       return rc;
     }
     if ((rc = write_clip_frames(&asset, &clip, clips_dir, fs, &alloc, &stats,
-                                progress, progress_user)) != PIXA_OK) {
+                                total_frames, progress, progress_user)) !=
+        PIXA_OK) {
       return rc;
     }
   }
@@ -454,7 +464,7 @@ extract_memory_to_dir(const void *data, size_t len, const char *dir_path,
   }
 
   if (progress != NULL) {
-    progress(progress_user, asset.frame_count, asset.frame_count);
+    progress(progress_user, total_frames, total_frames);
   }
   if (out_stats != NULL) {
     *out_stats = stats;

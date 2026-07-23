@@ -75,13 +75,17 @@ void main() {
   });
 
   test('validates petdef and badgedef pixa contracts', () {
-    expect(validatePixa(makePixa(clips: ['default'])), isA<PixaAsset>());
+    expect(validatePixa(makePixa(clips: ['idle'])), isA<PixaAsset>());
     expect(
-      validatePixa(
+      validatePixa(makePixa(clips: ['idle']), mode: PixaValidationMode.petdef),
+      isA<PixaAsset>(),
+    );
+    expect(
+      () => validatePixa(
         makePixa(clips: ['default']),
         mode: PixaValidationMode.petdef,
       ),
-      isA<PixaAsset>(),
+      throwsA(isA<PixaParseException>()),
     );
     expect(
       () => validatePixa(makePixa(clips: []), mode: PixaValidationMode.petdef),
