@@ -92,6 +92,9 @@ func Parse(data []byte) (Asset, error) {
 		for nameEnd < 32 && data[base+nameEnd] != 0 {
 			nameEnd++
 		}
+		if nameEnd == 32 {
+			return Asset{}, fmt.Errorf("pixa: clip %d name is not NUL-terminated", i)
+		}
 		asset.Clips[i] = Clip{
 			Name:            string(data[base : base+nameEnd]),
 			AnchorX:         int16(binary.LittleEndian.Uint16(data[base+32:])),

@@ -247,7 +247,7 @@ export function renderPixaFrameRGBA(
       `PIXA key frame encoding ${frame.encoding} is unsupported by the TypeScript renderer.`,
     );
   }
-  if (frame.payloadLength < asset.canvas.rgb565ByteCount) {
+  if (frame.payloadLength !== asset.canvas.rgb565ByteCount) {
     throw new PixaParseError(
       `PIXA key frame payload is ${frame.payloadLength} bytes, expected ${asset.canvas.rgb565ByteCount}.`,
     );
@@ -396,6 +396,9 @@ function readNullTerminatedUtf8(
   let length = 0;
   while (length < maxLength && view.getUint8(offset + length) !== 0) {
     length += 1;
+  }
+  if (length === maxLength) {
+    throw new PixaParseError("PIXA clip name is not NUL-terminated.");
   }
   return new TextDecoder().decode(
     new Uint8Array(view.buffer, view.byteOffset + offset, length),

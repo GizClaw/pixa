@@ -356,7 +356,7 @@ PixaFrameRgba renderPixaFrameRgba(PixaAsset asset, int frameIndex) {
 
   final pixelCount = asset.canvas.pixelCount;
   final expectedLength = asset.canvas.rgb565ByteCount;
-  if (frame.payloadLength < expectedLength) {
+  if (frame.payloadLength != expectedLength) {
     throw PixaParseException(
       'PIXA key frame is shorter than the RGB565 canvas payload',
       asset.bytes,
@@ -438,6 +438,13 @@ String _readNullTerminatedUtf8(Uint8List bytes, int offset, int length) {
   final limit = offset + length;
   while (end < limit && bytes[end] != 0) {
     end += 1;
+  }
+  if (end == limit) {
+    throw PixaParseException(
+      'PIXA clip name is not NUL-terminated',
+      bytes,
+      offset,
+    );
   }
   return utf8.decode(
     Uint8List.sublistView(bytes, offset, end),
