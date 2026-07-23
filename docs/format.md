@@ -24,9 +24,10 @@ The fixed header is 40 bytes.
 | 32 | 4 | payload offset |
 | 36 | 4 | payload length |
 
-The palette contains `color_count` RGB565 values. The clip table contains
-`clip_count` 56-byte records; the frame table contains `frame_count` 16-byte
-records.
+The palette contains `color_count` RGB565 values. Palette index `0` is
+reserved for a fully transparent pixel; its stored RGB565 value must be `0`.
+Other palette entries are opaque. The clip table contains `clip_count`
+56-byte records; the frame table contains `frame_count` 16-byte records.
 
 ## Clip record
 

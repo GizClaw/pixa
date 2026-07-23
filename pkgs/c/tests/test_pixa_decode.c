@@ -118,7 +118,7 @@ static void test_palette_rle_key_frame_with_raw_size(void) {
   assert(pixa_open_memory(data, len, &asset) == PIXA_OK);
   assert(pixa_decode_clip_frame_bgra(&asset, "idle", 0u, bgra, sizeof(bgra)) ==
          PIXA_OK);
-  const uint8_t expected[] = {0u, 0u, 255u, 255u, 0u, 0u, 0u, 255u};
+  const uint8_t expected[] = {0u, 0u, 255u, 255u, 0u, 0u, 0u, 0u};
   assert(memcmp(bgra, expected, sizeof(expected)) == 0);
 }
 

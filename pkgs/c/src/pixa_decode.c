@@ -82,7 +82,12 @@ static int decode_rle_rect_bgra(const pixa_asset_t *asset, const uint8_t *rle,
       size_t dy = rect_pixel / w;
       size_t pixel_index =
           ((size_t)y + dy) * asset->canvas.width + ((size_t)x + dx);
-      write_rgb565_as_bgra(color, out_bgra + pixel_index * PIXA_PIXEL_BYTES);
+      uint8_t *pixel = out_bgra + pixel_index * PIXA_PIXEL_BYTES;
+      if (color_index == 0u) {
+        memset(pixel, 0, PIXA_PIXEL_BYTES);
+      } else {
+        write_rgb565_as_bgra(color, pixel);
+      }
       ++rect_pixel;
     }
   }
