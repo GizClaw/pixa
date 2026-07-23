@@ -2,6 +2,7 @@
 **/.dart_tool/
 **/build/
 **/node_modules/
+pkgs/typescript/dist/
 pkgs/c/tests/test_public_headers
 pkgs/c/tests/test_pixa_blit
 pkgs/c/tests/test_pixa_decode

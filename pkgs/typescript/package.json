@@ -1,13 +1,46 @@
 {
   "name": "@gizclaw/pixa",
+  "version": "0.1.0",
   "private": true,
+  "description": "TypeScript parser and renderer for the PIXA animation format.",
+  "license": "BSD-3-Clause",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GizClaw/pixa.git",
+    "directory": "pkgs/typescript"
+  },
+  "homepage": "https://github.com/GizClaw/pixa#readme",
+  "bugs": {
+    "url": "https://github.com/GizClaw/pixa/issues"
+  },
+  "keywords": [
+    "animation",
+    "gizclaw",
+    "pixa",
+    "rgb565"
+  ],
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "engines": {
+    "node": ">=20"
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "format:check": "prettier --check src test",
+    "prepack": "npm run build",
     "test": "node --test --experimental-strip-types test/index.test.ts",
+    "test:package": "node --test test/package-boundary.test.mjs",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

@@ -53,7 +53,9 @@ test("parsePixa reads a valid PIXA header, clips, and frames", () => {
 
 test("parsePixa reads the committed shared asset", () => {
   const asset = parsePixa(
-    readFileSync(new URL("../../../assets/dewey.pixa", import.meta.url)),
+    readFileSync(
+      new URL("../../../assets/codex-pets/dewey.pixa", import.meta.url),
+    ),
   );
   assert.ok(asset.canvas.width > 0);
   assert.ok(asset.canvas.height > 0);

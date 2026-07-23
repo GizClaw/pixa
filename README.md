@@ -9,7 +9,37 @@ Flutter, and TypeScript integration tests. Additional distributable animation
 bundles are cataloged in [assets/README.md](assets/README.md).
 
 The repository root is the Go module `github.com/GizClaw/pixa`; language
-implementations live in `pkgs/`. The editor is a self-contained Go command:
+implementations live in `pkgs/`.
+
+TypeScript consumers install the repository root using a full commit SHA:
+
+```json
+{
+  "dependencies": {
+    "@gizclaw/pixa": "git+https://github.com/GizClaw/pixa.git#<full-commit-sha>"
+  }
+}
+```
+
+Flutter consumers use the package under `pkgs/flutter`, also pinned to a full
+commit SHA:
+
+```yaml
+dependencies:
+  pixa:
+    git:
+      url: https://github.com/GizClaw/pixa.git
+      ref: <full-commit-sha>
+      path: pkgs/flutter
+```
+
+Go consumers use the root module and import `github.com/GizClaw/pixa/pkgs/go`:
+
+```sh
+go get github.com/GizClaw/pixa/pkgs/go@<full-commit-sha>
+```
+
+The editor is a self-contained Go command:
 `make editor` starts it and opens the browser without requiring a preinstalled
 Python executable. It currently provides preview and inspection only; editing
 will be added to this same command. To install it for repeated use, run

@@ -1,0 +1,24 @@
+{
+  "name": "@gizclaw/pixa",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TypeScript parser and renderer for the PIXA animation format.",
+  "license": "BSD-3-Clause",
+  "type": "module",
+  "files": [
+    "pkgs/typescript/dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./pkgs/typescript/dist/index.d.ts",
+      "import": "./pkgs/typescript/dist/index.js"
+    }
+  },
+  "types": "./pkgs/typescript/dist/index.d.ts",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "prepare": "npm --prefix pkgs/typescript ci --ignore-scripts && npm --prefix pkgs/typescript run build"
+  }
+}
