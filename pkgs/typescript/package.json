@@ -21,9 +21,7 @@
     "rgb565"
   ],
   "files": [
-    "dist",
-    "LICENSE",
-    "README.md"
+    "dist"
   ],
   "exports": {
     ".": {
@@ -38,7 +36,6 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "format:check": "prettier --check src test",
-    "prepack": "npm run build",
     "test": "node --test --experimental-strip-types test/index.test.ts",
     "test:package": "node --test test/package-boundary.test.mjs",
     "typecheck": "tsc --noEmit"
