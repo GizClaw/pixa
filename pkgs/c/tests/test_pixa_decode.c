@@ -90,8 +90,24 @@ static void test_palette_rle_key_frame(void) {
   assert(memcmp(bgra, expected, sizeof(expected)) == 0);
 }
 
+static void test_rgb565_key_frame_with_palette(void) {
+  uint8_t data[128];
+  const uint16_t palette[] = {0u, 0xf800u};
+  const uint8_t payload[] = {0x00u, 0xf8u, 0x1fu, 0x00u};
+  const size_t len =
+      build_asset(data, sizeof(data), palette, 2u, payload, sizeof(payload));
+  pixa_asset_t asset;
+  uint8_t bgra[8];
+  assert(pixa_open_memory(data, len, &asset) == PIXA_OK);
+  assert(pixa_decode_clip_frame_bgra(&asset, "idle", 0u, bgra, sizeof(bgra)) ==
+         PIXA_OK);
+  const uint8_t expected[] = {0u, 0u, 255u, 255u, 255u, 0u, 0u, 255u};
+  assert(memcmp(bgra, expected, sizeof(expected)) == 0);
+}
+
 int main(void) {
   test_gizclaw_rgb565_key_frame();
   test_palette_rle_key_frame();
+  test_rgb565_key_frame_with_palette();
   return 0;
 }

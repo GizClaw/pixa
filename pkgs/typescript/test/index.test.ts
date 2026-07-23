@@ -131,8 +131,20 @@ test("selectPixaClip and pixaClipFrameIndex choose stable animation frames", () 
   assert.equal(selectPixaClip(asset, "missing")?.name, "idle");
   const clip = selectPixaClip(asset, "bath");
   assert.ok(clip);
-  assert.equal(pixaClipFrameIndex(clip, 0), 0);
-  assert.equal(pixaClipFrameIndex(clip, 250), 0);
+  assert.equal(pixaClipFrameIndex(asset, clip, 0), 0);
+  assert.equal(pixaClipFrameIndex(asset, clip, 250), 0);
+
+  const timedClip = { ...clip, frameCount: 2, totalDurationMs: 1000 };
+  const timedAsset = {
+    ...asset,
+    frames: [
+      { ...asset.frames[0]!, durationMs: 100 },
+      { ...asset.frames[0]!, durationMs: 900 },
+    ],
+  };
+  assert.equal(pixaClipFrameIndex(timedAsset, timedClip, 99), 0);
+  assert.equal(pixaClipFrameIndex(timedAsset, timedClip, 100), 1);
+  assert.equal(pixaClipFrameIndex(timedAsset, timedClip, 999), 1);
 });
 
 test("renderPixaFrameRGBA decodes RGB565 key frames", () => {

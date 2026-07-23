@@ -256,7 +256,10 @@
       canvas.width = asset.width; canvas.height = asset.height; ctx.putImageData(new ImageData(rgba, asset.width, asset.height), 0, 0);
       [...$('frames').rows].forEach((row) => row.classList.toggle('current', Number(row.dataset.frame) === index));
     }
-    function metric(label, value) { return `<div class="metric"><span>${label}</span><b>${value}</b></div>`; }
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
+    }
+    function metric(label, value) { return `<div class="metric"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></div>`; }
     function selectClip(index) {
       state.clipIndex = index; state.localFrame = 0; state.pausedElapsed = 0; state.startedAt = performance.now();
       const clip = state.asset.clips[index];
@@ -280,13 +283,22 @@
       else state.pausedElapsed = (performance.now() - state.startedAt) * state.speed;
       refreshPlayButton();
     }
+    function localFrameForElapsed(clip, elapsed) {
+      let remaining = elapsed;
+      for (let local = 0; local < clip.frameCount; local++) {
+        const duration = state.asset.frames[clip.firstFrame + local].durationMs;
+        if (duration <= 0 || remaining < duration) return local;
+        remaining -= duration;
+      }
+      return clip.frameCount - 1;
+    }
     function tick(now) {
       if (state.asset && state.playing) {
         const clip = state.asset.clips[state.clipIndex];
         if (clip && clip.frameCount) {
           const duration = Math.max(clip.totalDurationMs, clip.frameCount), raw = (now - state.startedAt) * state.speed;
           const elapsed = clip.loop ? ((raw % duration) + duration) % duration : Math.min(raw, duration - 1);
-          const local = Math.min(clip.frameCount - 1, Math.floor(elapsed / (duration / clip.frameCount)));
+          const local = localFrameForElapsed(clip, elapsed);
           if (local !== state.localFrame) showLocalFrame(local);
           if (!clip.loop && raw >= duration) setPlaying(false);
         }
@@ -299,8 +311,20 @@
         $('filename').textContent = file.name; $('error').textContent = ''; $('empty').hidden = true; canvas.hidden = false;
         $('status').textContent = `PIXA v${asset.version} · ${asset.clipCount} clips · ${asset.frameCount} frames`; $('status-dot').classList.add('ready');
         $('metrics').innerHTML = metric('canvas', `${asset.width} × ${asset.height}`) + metric('file', formatBytes(asset.byteLength)) + metric('clips', asset.clipCount) + metric('frames', asset.frameCount) + metric('payload', formatBytes(asset.payloadLength)) + metric('encoding', 'RGB565');
-        $('clips').innerHTML = asset.clips.length ? asset.clips.map((clip, index) => `<button class="clip" data-index="${index}"><span>${clip.name || `clip-${index}`}</span><span class="pill">${clip.frameCount}f</span></button>`).join('') : '<span class="sub">该文件没有 clip</span>';
-        document.querySelectorAll('.clip').forEach((button) => button.addEventListener('click', () => selectClip(Number(button.dataset.index))));
+        const clips = $('clips'); clips.replaceChildren();
+        if (asset.clips.length) {
+          asset.clips.forEach((clip, index) => {
+            const button = document.createElement('button'), name = document.createElement('span'), count = document.createElement('span');
+            button.className = 'clip'; button.dataset.index = String(index);
+            name.textContent = clip.name || `clip-${index}`;
+            count.className = 'pill'; count.textContent = `${clip.frameCount}f`;
+            button.append(name, count);
+            button.addEventListener('click', () => selectClip(index));
+            clips.append(button);
+          });
+        } else {
+          const message = document.createElement('span'); message.className = 'sub'; message.textContent = '该文件没有 clip'; clips.append(message);
+        }
         const zoom = Number($('zoom').value); canvas.style.width = `${asset.width * zoom}px`; canvas.style.height = `${asset.height * zoom}px`;
         if (asset.clips.length) { setPlaying(true); selectClip(Math.max(0, asset.clips.findIndex((clip) => clip.name === 'idle'))); }
         else { state.playing = false; refreshPlayButton(); }

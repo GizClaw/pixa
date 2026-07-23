@@ -165,9 +165,7 @@ int pixa_apply_clip_frame_bgra(const pixa_asset_t *asset,
 
   if (frame.frame_type == PIXA_FRAME_KEY) {
     memset(out_bgra, 0, pixa_canvas_bgra_bytes(asset->canvas));
-    if (asset->color_count == 1u &&
-        read_u16(asset->data, asset->palette_offset) == 0u &&
-        frame.payload_len == pixa_canvas_argb4444_bytes(asset->canvas)) {
+    if (frame.payload_len == pixa_canvas_argb4444_bytes(asset->canvas)) {
       return decode_rgb565_frame_bgra(asset, payload, frame.payload_len,
                                       out_bgra);
     }

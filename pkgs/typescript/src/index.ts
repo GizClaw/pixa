@@ -188,21 +188,38 @@ export function selectPixaClip(
   return findPixaClip(asset, "idle") ?? asset.clips[0];
 }
 
-export function pixaClipFrameIndex(clip: PixaClip, elapsedMs: number): number {
+export function pixaClipFrameIndex(
+  asset: PixaAsset,
+  clip: PixaClip,
+  elapsedMs: number,
+): number {
   if (clip.frameCount <= 0) {
     return clip.firstFrame;
   }
   if (clip.totalDurationMs <= 0) {
     return clip.firstFrame;
   }
+  if (
+    clip.firstFrame >= asset.frames.length ||
+    clip.frameCount > asset.frames.length - clip.firstFrame
+  ) {
+    throw new PixaParseError(
+      `PIXA clip "${clip.name}" references frames outside the frame table.`,
+    );
+  }
   const elapsed = clip.loop
     ? positiveModulo(elapsedMs, clip.totalDurationMs)
     : Math.min(Math.max(elapsedMs, 0), Math.max(clip.totalDurationMs - 1, 0));
-  const averageFrameMs = clip.totalDurationMs / clip.frameCount;
-  return (
-    clip.firstFrame +
-    Math.min(clip.frameCount - 1, Math.floor(elapsed / averageFrameMs))
-  );
+  let elapsedInClip = elapsed;
+  for (let offset = 0; offset < clip.frameCount; offset += 1) {
+    const frameIndex = clip.firstFrame + offset;
+    const duration = asset.frames[frameIndex]!.durationMs;
+    if (duration <= 0 || elapsedInClip < duration) {
+      return frameIndex;
+    }
+    elapsedInClip -= duration;
+  }
+  return clip.firstFrame + clip.frameCount - 1;
 }
 
 export function renderPixaFrameRGBA(
