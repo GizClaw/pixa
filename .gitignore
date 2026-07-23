@@ -1,6 +1,7 @@
-pkgs/flutter/.dart_tool/
-pkgs/flutter/build/
-pkgs/typescript/node_modules/
+.DS_Store
+**/.dart_tool/
+**/build/
+**/node_modules/
 pkgs/c/tests/test_public_headers
 pkgs/c/tests/test_pixa_blit
 pkgs/c/tests/test_pixa_decode
