@@ -11,6 +11,10 @@ int pixaGoOSALReadSecond(pixa_osal_api_t *api, const char *path,
                          uint8_t *out_byte);
 int pixaGoExtract(const void *data, size_t len, const char *path,
                   pixa_osal_api_t *api);
+int pixaGoRunPublicHeadersTest(void);
+int pixaGoRunBlitTest(void);
+int pixaGoRunDecodeTest(void);
+int pixaGoRunDirTest(void);
 */
 import "C"
 
@@ -197,4 +201,13 @@ func extract(root, path string, data []byte) int {
 	return withOSAL(root, func(api *C.pixa_osal_api_t) C.int {
 		return C.pixaGoExtract(unsafe.Pointer(unsafe.SliceData(data)), C.size_t(len(data)), cpath, api)
 	})
+}
+
+func coreTestResults() map[string]int {
+	return map[string]int{
+		"public headers": int(C.pixaGoRunPublicHeadersTest()),
+		"blit":           int(C.pixaGoRunBlitTest()),
+		"decode":         int(C.pixaGoRunDecodeTest()),
+		"directory":      int(C.pixaGoRunDirTest()),
+	}
 }

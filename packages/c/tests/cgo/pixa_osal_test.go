@@ -45,6 +45,14 @@ func TestGoFilesystemExtractsPIXA(t *testing.T) {
 	}
 }
 
+func TestPortableCCore(t *testing.T) {
+	for name, status := range coreTestResults() {
+		if status != 0 {
+			t.Errorf("%s test exited with status %d", name, status)
+		}
+	}
+}
+
 func samplePIXA() []byte {
 	const (
 		headerOffset  = 40
