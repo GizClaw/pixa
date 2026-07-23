@@ -150,13 +150,17 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
-            const { data: reaction } = await github.rest.reactions.createForIssueComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: Number(process.env.REQUEST_COMMENT_ID),
-              content: 'eyes',
-            });
-            core.setOutput('reaction_id', String(reaction.id));
+            try {
+              const { data: reaction } = await github.rest.reactions.createForIssueComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: Number(process.env.REQUEST_COMMENT_ID),
+                content: 'eyes',
+              });
+              core.setOutput('reaction_id', String(reaction.id));
+            } catch (error) {
+              core.warning(`Could not mark the review request with a reaction: ${error.message}`);
+            }
 
       - name: Require OpenAI API key
         env:
@@ -185,18 +189,22 @@ jobs:
           REVIEW_OUTCOME: ${{ steps.codex.outcome }}
         with:
           script: |
-            const commentId = Number(process.env.REQUEST_COMMENT_ID);
-            const reactionId = Number(process.env.REQUEST_REACTION_ID);
-            if (Number.isSafeInteger(reactionId) && reactionId > 0) {
-              await github.request('DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions/{reaction_id}', {
-                owner: context.repo.owner, repo: context.repo.repo, comment_id: commentId, reaction_id: reactionId,
+            try {
+              const commentId = Number(process.env.REQUEST_COMMENT_ID);
+              const reactionId = Number(process.env.REQUEST_REACTION_ID);
+              if (Number.isSafeInteger(reactionId) && reactionId > 0) {
+                await github.request('DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions/{reaction_id}', {
+                  owner: context.repo.owner, repo: context.repo.repo, comment_id: commentId, reaction_id: reactionId,
+                });
+              }
+              const content = process.env.REVIEW_OUTCOME === 'success' ? 'rocket'
+                : process.env.REVIEW_OUTCOME === 'cancelled' ? 'confused' : '-1';
+              await github.rest.reactions.createForIssueComment({
+                owner: context.repo.owner, repo: context.repo.repo, comment_id: commentId, content,
               });
+            } catch (error) {
+              core.warning(`Could not record the review result with a reaction: ${error.message}`);
             }
-            const content = process.env.REVIEW_OUTCOME === 'success' ? 'rocket'
-              : process.env.REVIEW_OUTCOME === 'cancelled' ? 'confused' : '-1';
-            await github.rest.reactions.createForIssueComment({
-              owner: context.repo.owner, repo: context.repo.repo, comment_id: commentId, content,
-            });
 
   publish:
     needs: [pull-request, review]
