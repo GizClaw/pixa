@@ -1,3 +1,13 @@
+License scope
+
+Except for the files under assets/codex-pets/, the contents of this repository
+are licensed under the BSD 3-Clause License below.
+
+The files under assets/codex-pets/ are expressly excluded from this license.
+No license or permission to copy, modify, distribute, or sublicense those files
+is granted by this document. See assets/codex-pets/README.md for their
+provenance and licensing status.
+
 BSD 3-Clause License
 
 Copyright (c) 2026, Haivivi Innovation Co., Ltd.

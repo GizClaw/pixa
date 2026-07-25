@@ -1,5 +1,12 @@
 # PIXA
 
+[![CI](https://github.com/GizClaw/pixa/actions/workflows/ci.yml/badge.svg)](https://github.com/GizClaw/pixa/actions/workflows/ci.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/GizClaw/pixa.svg)](https://pkg.go.dev/github.com/GizClaw/pixa)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/GizClaw/pixa?filename=go.mod)](go.mod)
+[![Code License](https://img.shields.io/badge/code%20license-BSD--3--Clause-blue)](LICENSE)
+![Implementations](https://img.shields.io/badge/implementations-C%20%7C%20Dart%20%7C%20Go%20%7C%20TypeScript-22c55e)
+![Status](https://img.shields.io/badge/status-active%20development-f59e0b)
+
 PIXA is the shared format, runtime, tools, and distributable animation repository for GizClaw clients.
 
 The canonical format contract is [docs/format.md](docs/format.md), and the C platform boundary is documented in [docs/c-osal.md](docs/c-osal.md). Committed animations are under [assets/](assets/). Existing product repositories will consume immutable PIXA release tags rather than carrying local implementation copies.
@@ -51,3 +58,11 @@ Reusable WebP-atlas and GIF cooking commands are documented in
 ## Local checks
 
 Run `make help` to view available commands, or `make check` to run all installed package checks.
+
+## License
+
+The repository code and documentation are available under the
+[BSD 3-Clause License](LICENSE), subject to the scope stated there. The
+`assets/codex-pets/` files are expressly excluded from that license and are not
+offered as open-licensed assets by this repository; see their
+[licensing notice](assets/codex-pets/README.md).
