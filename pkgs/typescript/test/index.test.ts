@@ -163,27 +163,84 @@ test("renderPixaFrameRGBA decodes RGB565 key frames", () => {
   assert.deepEqual(Array.from(frame.data), [255, 0, 0, 255, 0, 255, 0, 255]);
 });
 
+test("renderPixaFrameRGBA decodes transparent palette RLE key frames", () => {
+  const asset = parsePixa(
+    makePixa({
+      clips: ["idle"],
+      encoding: 1,
+      height: 1,
+      palette: [0, 0xf800],
+      payload: [1, 0, 1, 1],
+      width: 2,
+    }),
+  );
+  const frame = renderPixaFrameRGBA(asset, 0);
+
+  assert.deepEqual(Array.from(frame.data), [0, 0, 0, 0, 255, 0, 0, 255]);
+});
+
+test("renderPixaFrameRGBA rejects malformed palette RLE", () => {
+  const malformed = [
+    { payload: [1], pattern: /payload length/ },
+    { payload: [0, 0], pattern: /zero-length/ },
+    { payload: [2, 2], pattern: /exceeds the palette/ },
+    { payload: [1, 1], pattern: /does not fill/ },
+    { payload: [3, 1], pattern: /exceeds the frame canvas/ },
+  ];
+  for (const { payload, pattern } of malformed) {
+    const asset = parsePixa(
+      makePixa({
+        clips: ["idle"],
+        encoding: 1,
+        height: 1,
+        palette: [0, 0xf800],
+        payload,
+        width: 2,
+      }),
+    );
+    assert.throws(() => renderPixaFrameRGBA(asset, 0), pattern);
+  }
+
+  const badTransparentEntry = parsePixa(
+    makePixa({
+      clips: ["idle"],
+      encoding: 1,
+      height: 1,
+      palette: [0x001f, 0xf800],
+      payload: [2, 1],
+      width: 2,
+    }),
+  );
+  assert.throws(() => renderPixaFrameRGBA(badTransparentEntry, 0), /index 0/);
+});
+
 type MakePixaOptions = {
   clips: string[];
+  encoding?: number;
   height?: number;
   mutate?: (data: ArrayBuffer) => void;
+  palette?: number[];
+  payload?: number[];
   width?: number;
 };
 
 function makePixa({
   clips,
+  encoding = 0,
   height = 16,
   mutate,
+  palette = [0],
+  payload = [0x00, 0xf8, 0xe0, 0x07],
   width = 16,
 }: MakePixaOptions): ArrayBuffer {
   const headerSize = 40;
   const clipEntrySize = 56;
   const frameEntrySize = 16;
   const paletteOffset = headerSize;
-  const clipOffset = paletteOffset + 2;
+  const clipOffset = paletteOffset + palette.length * 2;
   const frameOffset = clipOffset + clips.length * clipEntrySize;
   const payloadOffset = frameOffset + frameEntrySize;
-  const payloadLength = 4;
+  const payloadLength = payload.length;
   const data = new ArrayBuffer(payloadOffset + payloadLength);
   const bytes = new Uint8Array(data);
   const view = new DataView(data);
@@ -193,7 +250,7 @@ function makePixa({
   view.setUint16(6, headerSize, true);
   view.setUint16(8, width, true);
   view.setUint16(10, height, true);
-  view.setUint16(12, 1, true);
+  view.setUint16(12, palette.length, true);
   view.setUint16(14, clips.length, true);
   view.setUint32(16, 1, true);
   view.setUint32(20, paletteOffset, true);
@@ -201,6 +258,10 @@ function makePixa({
   view.setUint32(28, frameOffset, true);
   view.setUint32(32, payloadOffset, true);
   view.setUint32(36, payloadLength, true);
+
+  for (let i = 0; i < palette.length; i += 1) {
+    view.setUint16(paletteOffset + i * 2, palette[i] ?? 0, true);
+  }
 
   for (let i = 0; i < clips.length; i += 1) {
     const base = clipOffset + i * clipEntrySize;
@@ -212,9 +273,10 @@ function makePixa({
 
   view.setUint16(frameOffset, 120, true);
   view.setUint8(frameOffset + 2, 0);
+  view.setUint8(frameOffset + 3, encoding);
   view.setUint32(frameOffset + 4, 0, true);
   view.setUint32(frameOffset + 8, payloadLength, true);
-  bytes.set([0x00, 0xf8, 0xe0, 0x07], payloadOffset);
+  bytes.set(payload, payloadOffset);
   mutate?.(data);
   return data;
 }

@@ -13,3 +13,9 @@ Obtain permission from the applicable rights holder before using or
 redistributing these assets. The PIXA container format and repository code
 remain covered by the license scope stated in the repository's
 [LICENSE](../../LICENSE).
+
+The committed PIXA files preserve the source atlases' transparent backgrounds
+using PIXA v1 palette RLE. The reusable atlas-layout manifest and cooking
+behavior are documented under [`tools/`](../../tools/README.md); the source
+WebP files are intentionally not included. Those technical conversion details
+do not change or expand the asset permissions stated above.

@@ -143,6 +143,54 @@ void main() {
     expect(image.data, [255, 0, 0, 255, 0, 255, 0, 255]);
   });
 
+  test('renders transparent palette RLE key frames to RGBA', () {
+    final asset = parsePixa(
+      makePixa(frameEncoding: 1, palette: [0, 0xf800], payload: [1, 0, 1, 1]),
+    );
+    final image = renderPixaFrameRgba(asset, 0);
+
+    expect(image.data, [0, 0, 0, 0, 255, 0, 0, 255]);
+  });
+
+  test('rejects malformed palette RLE key frames', () {
+    final malformed = <(List<int>, Matcher)>[
+      ([1], contains('payload length')),
+      ([0, 0], contains('zero-length')),
+      ([2, 2], contains('exceeds the palette')),
+      ([1, 1], contains('does not fill')),
+      ([3, 1], contains('exceeds the frame canvas')),
+    ];
+    for (final (payload, message) in malformed) {
+      final asset = parsePixa(
+        makePixa(frameEncoding: 1, palette: [0, 0xf800], payload: payload),
+      );
+      expect(
+        () => renderPixaFrameRgba(asset, 0),
+        throwsA(
+          isA<PixaParseException>().having(
+            (error) => error.message,
+            'message',
+            message,
+          ),
+        ),
+      );
+    }
+
+    final badTransparent = parsePixa(
+      makePixa(frameEncoding: 1, palette: [0x001f, 0xf800], payload: [2, 1]),
+    );
+    expect(
+      () => renderPixaFrameRgba(badTransparent, 0),
+      throwsA(
+        isA<PixaParseException>().having(
+          (error) => error.message,
+          'message',
+          contains('index 0'),
+        ),
+      ),
+    );
+  });
+
   test('parses unsupported frame metadata and rejects it in renderer', () {
     final asset = parsePixa(makePixa(frameType: 1));
 

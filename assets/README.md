@@ -8,6 +8,7 @@ varies by asset directory.
   directory's [licensing notice](codex-pets/README.md). `dewey.pixa` is the
   shared integration-test fixture.
 
-Source artwork and asset-cooking scripts remain in the product or deployment
-repository that owns their production pipeline. Every committed `.pixa` file
-in this directory is parsed by the Go test suite.
+Source artwork and rights-holder production recipes remain outside this
+repository. Reusable PIXA cooking code and non-artwork layout manifests live
+under [`tools/`](../tools/). Every committed `.pixa` file in this directory is
+parsed by the Go test suite.

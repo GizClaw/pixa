@@ -77,6 +77,9 @@ static int decode_rle_rect_bgra(const pixa_asset_t *asset, const uint8_t *rle,
     if (rc != PIXA_OK) {
       return rc;
     }
+    if (color_index == 0u && color != 0u) {
+      return PIXA_ERR_INVALID_FORMAT;
+    }
     for (uint8_t n = 0u; n < count; ++n) {
       size_t dx = rect_pixel % w;
       size_t dy = rect_pixel / w;

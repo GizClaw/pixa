@@ -11,6 +11,8 @@ int pixaGoOSALReadSecond(pixa_osal_api_t *api, const char *path,
                          uint8_t *out_byte);
 int pixaGoExtract(const void *data, size_t len, const char *path,
                   pixa_osal_api_t *api);
+int pixaGoPack(const char *dir_path, const char *out_path,
+               const char *clip_id, pixa_osal_api_t *api);
 int pixaGoRunPublicHeadersTest(void);
 int pixaGoRunBlitTest(void);
 int pixaGoRunDecodeTest(void);
@@ -200,6 +202,18 @@ func extract(root, path string, data []byte) int {
 	defer C.free(unsafe.Pointer(cpath))
 	return withOSAL(root, func(api *C.pixa_osal_api_t) C.int {
 		return C.pixaGoExtract(unsafe.Pointer(unsafe.SliceData(data)), C.size_t(len(data)), cpath, api)
+	})
+}
+
+func pack(root, dirPath, outPath, clipID string) int {
+	cdir := C.CString(dirPath)
+	defer C.free(unsafe.Pointer(cdir))
+	cout := C.CString(outPath)
+	defer C.free(unsafe.Pointer(cout))
+	cclip := C.CString(clipID)
+	defer C.free(unsafe.Pointer(cclip))
+	return withOSAL(root, func(api *C.pixa_osal_api_t) C.int {
+		return C.pixaGoPack(cdir, cout, cclip, api)
 	})
 }
 

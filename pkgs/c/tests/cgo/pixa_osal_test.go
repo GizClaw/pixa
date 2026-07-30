@@ -2,6 +2,7 @@ package cgo
 
 import (
 	"encoding/binary"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -47,6 +48,121 @@ func TestGoFilesystemExtractsPIXA(t *testing.T) {
 	}
 }
 
+func TestGoFilesystemPacksTransparentPaletteRLE(t *testing.T) {
+	root := t.TempDir()
+	const clipID = "look-022.5"
+	if got := extract(root, "source", samplePIXAWithClip(clipID)); got != 0 {
+		t.Fatalf("extract = %d", got)
+	}
+	framesPath := filepath.Join(root, "source", "clips", clipID+".argb4444")
+	if err := os.WriteFile(framesPath, []byte{0x00, 0x00, 0x00, 0xff}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := pack(root, "source", "packed.pixa", clipID); got != 0 {
+		t.Fatalf("pack = %d", got)
+	}
+	packed, err := os.ReadFile(filepath.Join(root, "packed.pixa"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	frameOffset := binary.LittleEndian.Uint32(packed[28:32])
+	paletteOffset := binary.LittleEndian.Uint32(packed[20:24])
+	if packed[frameOffset+3] != 1 {
+		t.Fatalf("key frame encoding = %d, want palette RLE", packed[frameOffset+3])
+	}
+	if got := binary.LittleEndian.Uint16(packed[paletteOffset:]); got != 0 {
+		t.Fatalf("palette index 0 = %#x, want transparent zero", got)
+	}
+	if got := extract(root, "roundtrip", packed); got != 0 {
+		t.Fatalf("roundtrip extract = %d", got)
+	}
+	roundtrip, err := os.ReadFile(filepath.Join(root, "roundtrip", "clips", clipID+".argb4444"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := binary.LittleEndian.Uint16(roundtrip[:2]); got != 0 {
+		t.Fatalf("transparent pixel = %#x, want 0", got)
+	}
+	if got := binary.LittleEndian.Uint16(roundtrip[2:4]); got>>12 != 0xf {
+		t.Fatalf("opaque pixel = %#x, want alpha 0xf", got)
+	}
+}
+
+func TestCExtractsCommittedCodexPetFrames(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "assets", "codex-pets", "dewey.pixa"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(data) < 4 || string(data[:4]) != "PIXA" {
+		t.Fatal("dewey.pixa is not hydrated from Git LFS")
+	}
+	root := t.TempDir()
+	if got := extract(root, "dewey", data); got != 0 {
+		t.Fatalf("extract = %d", got)
+	}
+	paths, err := filepath.Glob(filepath.Join(root, "dewey", "clips", "*.argb4444"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(paths) != 25 {
+		t.Fatalf("extracted clip count = %d, want 25", len(paths))
+	}
+	const width, height = 96, 104
+	const frameBytes = width * height * 2
+	totalFrames := 0
+	for _, path := range paths {
+		frames, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(frames) == 0 || len(frames)%frameBytes != 0 {
+			t.Fatalf("%s has invalid frame bytes %d", path, len(frames))
+		}
+		for offset := 0; offset < len(frames); offset += frameBytes {
+			if err := validateARGB4444SpriteFrame(frames[offset:offset+frameBytes], width, height); err != nil {
+				t.Fatalf("%s frame %d: %v", path, offset/frameBytes, err)
+			}
+			totalFrames++
+		}
+	}
+	if totalFrames != 73 {
+		t.Fatalf("extracted frame count = %d, want 73", totalFrames)
+	}
+	if _, err := os.Stat(filepath.Join(root, "dewey", "clips", "look-022.5.argb4444")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func validateARGB4444SpriteFrame(frame []byte, width, height int) error {
+	alpha := func(pixel int) byte {
+		return frame[pixel*2+1] >> 4
+	}
+	visible := false
+	for pixel := range width * height {
+		visible = visible || alpha(pixel) != 0
+	}
+	if !visible {
+		return fmt.Errorf("frame is fully transparent")
+	}
+	for x := range width {
+		if alpha(x) != 0 {
+			return fmt.Errorf("top edge pixel %d is opaque", x)
+		}
+		if alpha((height-1)*width+x) != 0 {
+			return fmt.Errorf("bottom edge pixel %d is opaque", x)
+		}
+	}
+	for y := range height {
+		if alpha(y*width) != 0 {
+			return fmt.Errorf("left edge pixel %d is opaque", y)
+		}
+		if alpha(y*width+width-1) != 0 {
+			return fmt.Errorf("right edge pixel %d is opaque", y)
+		}
+	}
+	return nil
+}
+
 func TestPortableCCore(t *testing.T) {
 	for name, status := range coreTestResults() {
 		if status != 0 {
@@ -86,5 +202,13 @@ func samplePIXA() []byte {
 	put16(frameOffset, 100)
 	put32(frameOffset+8, 4)
 	copy(data[payloadOffset:], []byte{0x00, 0xf8, 0x1f, 0x00})
+	return data
+}
+
+func samplePIXAWithClip(name string) []byte {
+	data := samplePIXA()
+	const clipOffset = 42
+	clear(data[clipOffset : clipOffset+32])
+	copy(data[clipOffset:], name)
 	return data
 }

@@ -5,6 +5,9 @@ Uint8List makePixa({
   int width = 2,
   int height = 1,
   List<String> clips = const ['idle'],
+  List<int> palette = const [0],
+  int frameEncoding = 0,
+  List<int>? frameEncodings,
   int frameType = 0,
   List<int>? frameTypes,
   List<int> frameDurations = const [120],
@@ -16,8 +19,11 @@ Uint8List makePixa({
   const clipEntrySize = 56;
   const frameEntrySize = 16;
   final payloads = framePayloads ?? [payload];
+  final encodings =
+      frameEncodings ?? List<int>.filled(payloads.length, frameEncoding);
   final types = frameTypes ?? List<int>.filled(payloads.length, frameType);
   if (frameDurations.length != payloads.length ||
+      encodings.length != payloads.length ||
       types.length != payloads.length) {
     throw ArgumentError.value(
       payloads.length,
@@ -27,7 +33,7 @@ Uint8List makePixa({
   }
 
   const paletteOffset = headerSize;
-  final clipOffset = paletteOffset + 2;
+  final clipOffset = paletteOffset + palette.length * 2;
   final frameOffset = clipOffset + clips.length * clipEntrySize;
   final payloadOffset = frameOffset + payloads.length * frameEntrySize;
   final payloadLength = payloads.fold<int>(
@@ -43,7 +49,7 @@ Uint8List makePixa({
   data.setUint16(6, headerSize, Endian.little);
   data.setUint16(8, width, Endian.little);
   data.setUint16(10, height, Endian.little);
-  data.setUint16(12, 1, Endian.little);
+  data.setUint16(12, palette.length, Endian.little);
   data.setUint16(14, clips.length, Endian.little);
   data.setUint32(16, payloads.length, Endian.little);
   data.setUint32(20, paletteOffset, Endian.little);
@@ -51,6 +57,10 @@ Uint8List makePixa({
   data.setUint32(28, frameOffset, Endian.little);
   data.setUint32(32, payloadOffset, Endian.little);
   data.setUint32(36, payloadLength, Endian.little);
+
+  for (var i = 0; i < palette.length; i += 1) {
+    data.setUint16(paletteOffset + i * 2, palette[i], Endian.little);
+  }
 
   for (var i = 0; i < clips.length; i += 1) {
     final base = clipOffset + i * clipEntrySize;
@@ -71,6 +81,7 @@ Uint8List makePixa({
     final base = frameOffset + i * frameEntrySize;
     data.setUint16(base, frameDurations[i], Endian.little);
     data.setUint8(base + 2, types[i]);
+    data.setUint8(base + 3, encodings[i]);
     data.setUint32(base + 4, framePayloadOffset, Endian.little);
     data.setUint32(base + 8, payloads[i].length, Endian.little);
     bytes.setAll(payloadOffset + framePayloadOffset, payloads[i]);

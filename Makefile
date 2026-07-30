@@ -45,6 +45,7 @@ tools-check:
 	node --check tools/lib/pixa-v1.mjs
 	node --check tools/webp-to-pixa.mjs
 	node --check tools/gifs-to-pixa.mjs
+	node --test --experimental-strip-types tools/test/*.test.mjs
 
 editor:
 	go run ./cmd/pixa-editor

@@ -40,12 +40,14 @@ static int valid_range(size_t len, uint32_t offset, uint64_t bytes) {
 }
 
 static int valid_name(const char *name, size_t len) {
-  if (name == NULL || len == 0u || len > PIXA_MAX_CLIP_NAME)
+  if (name == NULL || len == 0u || len >= PIXA_MAX_CLIP_NAME ||
+      (len == 1u && name[0] == '.') ||
+      (len == 2u && name[0] == '.' && name[1] == '.'))
     return 0;
   for (size_t i = 0u; i < len; ++i) {
     char ch = name[i];
     if (!((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
-          (ch >= '0' && ch <= '9') || ch == '_' || ch == '-'))
+          (ch >= '0' && ch <= '9') || ch == '_' || ch == '-' || ch == '.'))
       return 0;
   }
   return 1;

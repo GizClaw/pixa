@@ -122,10 +122,43 @@ static void test_palette_rle_key_frame_with_raw_size(void) {
   assert(memcmp(bgra, expected, sizeof(expected)) == 0);
 }
 
+static void assert_invalid_palette_rle(const uint16_t *palette,
+                                       uint16_t color_count,
+                                       const uint8_t *payload,
+                                       size_t payload_len) {
+  uint8_t data[128];
+  const size_t len = build_asset(data, sizeof(data), palette, color_count,
+                                 payload, payload_len, 1u);
+  pixa_asset_t asset;
+  uint8_t bgra[8];
+  assert(pixa_open_memory(data, len, &asset) == PIXA_OK);
+  assert(pixa_decode_clip_frame_bgra(&asset, "idle", 0u, bgra, sizeof(bgra)) ==
+         PIXA_ERR_INVALID_FORMAT);
+}
+
+static void test_rejects_malformed_palette_rle(void) {
+  const uint16_t palette[] = {0u, 0xf800u};
+  const uint16_t bad_transparent_palette[] = {0x001fu, 0xf800u};
+  const uint8_t truncated[] = {1u};
+  const uint8_t zero_run[] = {0u, 0u};
+  const uint8_t bad_index[] = {2u, 2u};
+  const uint8_t underflow[] = {1u, 1u};
+  const uint8_t overflow[] = {3u, 1u};
+  const uint8_t bad_transparent[] = {2u, 0u};
+  assert_invalid_palette_rle(palette, 2u, truncated, sizeof(truncated));
+  assert_invalid_palette_rle(palette, 2u, zero_run, sizeof(zero_run));
+  assert_invalid_palette_rle(palette, 2u, bad_index, sizeof(bad_index));
+  assert_invalid_palette_rle(palette, 2u, underflow, sizeof(underflow));
+  assert_invalid_palette_rle(palette, 2u, overflow, sizeof(overflow));
+  assert_invalid_palette_rle(bad_transparent_palette, 2u, bad_transparent,
+                             sizeof(bad_transparent));
+}
+
 int main(void) {
   test_gizclaw_rgb565_key_frame();
   test_palette_rle_key_frame();
   test_rgb565_key_frame_with_palette();
   test_palette_rle_key_frame_with_raw_size();
+  test_rejects_malformed_palette_rle();
   return 0;
 }
