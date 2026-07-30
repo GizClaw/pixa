@@ -31,6 +31,14 @@ type Frame struct {
 	PayloadOffset, PayloadLength uint32
 }
 
+// ParseLimits bounds table allocation and clip-referenced traversal during
+// parsing. A zero field leaves that dimension unrestricted.
+type ParseLimits struct {
+	MaxClips            uint16
+	MaxFrames           uint32
+	MaxReferencedFrames uint64
+}
+
 // Asset is the validated PIXA v1 container metadata. Table and payload ranges
 // are guaranteed to be within Bytes.
 type Asset struct {
@@ -52,6 +60,12 @@ type Asset struct {
 
 // Parse validates the PIXA v1 header and its declared table/payload ranges.
 func Parse(data []byte) (Asset, error) {
+	return ParseWithLimits(data, ParseLimits{})
+}
+
+// ParseWithLimits validates the PIXA v1 container while enforcing caller-owned
+// table and traversal limits before allocating the corresponding slices.
+func ParseWithLimits(data []byte, limits ParseLimits) (Asset, error) {
 	if len(data) < HeaderSize || string(data[:4]) != Magic {
 		return Asset{}, fmt.Errorf("pixa: invalid magic or truncated header")
 	}
@@ -79,6 +93,12 @@ func Parse(data []byte) (Asset, error) {
 	if asset.ColorCount > maxPaletteColors {
 		return Asset{}, fmt.Errorf("pixa: palette color count %d exceeds %d", asset.ColorCount, maxPaletteColors)
 	}
+	if limits.MaxClips != 0 && asset.ClipCount > limits.MaxClips {
+		return Asset{}, fmt.Errorf("pixa: clip count %d exceeds limit %d", asset.ClipCount, limits.MaxClips)
+	}
+	if limits.MaxFrames != 0 && asset.FrameCount > limits.MaxFrames {
+		return Asset{}, fmt.Errorf("pixa: frame count %d exceeds limit %d", asset.FrameCount, limits.MaxFrames)
+	}
 	if !rangeOK(len(data), asset.PaletteOffset, uint64(asset.ColorCount)*2) ||
 		!rangeOK(len(data), asset.ClipOffset, uint64(asset.ClipCount)*clipSize) ||
 		!rangeOK(len(data), asset.FrameOffset, uint64(asset.FrameCount)*frameSize) ||
@@ -89,11 +109,20 @@ func Parse(data []byte) (Asset, error) {
 		return Asset{}, fmt.Errorf("pixa: transparent palette index 0 stores a nonzero RGB565 value")
 	}
 	asset.Clips = make([]Clip, asset.ClipCount)
+	var referencedFrames uint64
 	for i := range asset.Clips {
 		base := int(asset.ClipOffset) + i*clipSize
 		first, count := binary.LittleEndian.Uint32(data[base+36:]), binary.LittleEndian.Uint32(data[base+40:])
 		if first > asset.FrameCount || count > asset.FrameCount-first {
 			return Asset{}, fmt.Errorf("pixa: clip %d frame range exceeds table", i)
+		}
+		referencedFrames += uint64(count)
+		if limits.MaxReferencedFrames != 0 && referencedFrames > limits.MaxReferencedFrames {
+			return Asset{}, fmt.Errorf(
+				"pixa: referenced frame count %d exceeds limit %d",
+				referencedFrames,
+				limits.MaxReferencedFrames,
+			)
 		}
 		nameEnd := 0
 		for nameEnd < 32 && data[base+nameEnd] != 0 {

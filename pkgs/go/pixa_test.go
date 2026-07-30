@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -59,6 +60,78 @@ func TestParseCommittedAssets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestParseWithLimitsRejectsCountsBeforeTableAllocation(t *testing.T) {
+	tests := []struct {
+		name       string
+		clipCount  uint16
+		frameCount uint32
+		limits     ParseLimits
+		want       string
+	}{
+		{
+			name:      "clips",
+			clipCount: 257,
+			limits:    ParseLimits{MaxClips: 256},
+			want:      "clip count 257 exceeds limit 256",
+		},
+		{
+			name:       "frames",
+			frameCount: 4097,
+			limits:     ParseLimits{MaxFrames: 4096},
+			want:       "frame count 4097 exceeds limit 4096",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := makeHeaderOnlyAsset(tt.clipCount, tt.frameCount)
+			_, err := ParseWithLimits(data, tt.limits)
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("ParseWithLimits() error = %v, want %q", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseWithLimitsRejectsReferencedFramesDuringClipParsing(t *testing.T) {
+	const (
+		clipCount  = 2
+		frameCount = 3
+	)
+	data := make([]byte, HeaderSize+clipCount*clipSize+frameCount*frameSize)
+	copy(data[:4], Magic)
+	binary.LittleEndian.PutUint16(data[4:6], Version)
+	binary.LittleEndian.PutUint16(data[6:8], HeaderSize)
+	binary.LittleEndian.PutUint16(data[8:10], 1)
+	binary.LittleEndian.PutUint16(data[10:12], 1)
+	binary.LittleEndian.PutUint16(data[14:16], clipCount)
+	binary.LittleEndian.PutUint32(data[16:20], frameCount)
+	binary.LittleEndian.PutUint32(data[20:24], HeaderSize)
+	binary.LittleEndian.PutUint32(data[24:28], HeaderSize)
+	binary.LittleEndian.PutUint32(data[28:32], HeaderSize+clipCount*clipSize)
+	binary.LittleEndian.PutUint32(data[32:36], uint32(len(data)))
+	for i := range clipCount {
+		base := HeaderSize + i*clipSize
+		binary.LittleEndian.PutUint32(data[base+40:base+44], frameCount)
+	}
+
+	_, err := ParseWithLimits(data, ParseLimits{MaxReferencedFrames: 5})
+	if err == nil || !strings.Contains(err.Error(), "referenced frame count 6 exceeds limit 5") {
+		t.Fatalf("ParseWithLimits() error = %v, want referenced-frame limit", err)
+	}
+}
+
+func makeHeaderOnlyAsset(clipCount uint16, frameCount uint32) []byte {
+	data := make([]byte, HeaderSize)
+	copy(data[:4], Magic)
+	binary.LittleEndian.PutUint16(data[4:6], Version)
+	binary.LittleEndian.PutUint16(data[6:8], HeaderSize)
+	binary.LittleEndian.PutUint16(data[8:10], 1)
+	binary.LittleEndian.PutUint16(data[10:12], 1)
+	binary.LittleEndian.PutUint16(data[14:16], clipCount)
+	binary.LittleEndian.PutUint32(data[16:20], frameCount)
+	return data
 }
 
 func TestCodexPetAssetsPreserveTransparentBorders(t *testing.T) {
