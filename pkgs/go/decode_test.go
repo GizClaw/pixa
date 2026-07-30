@@ -368,6 +368,9 @@ func TestParseValidatesPaletteHeaders(t *testing.T) {
 	if maxPaletteAsset.ColorCount != maxPaletteColors {
 		t.Fatalf("Parse() color count = %d, want %d", maxPaletteAsset.ColorCount, maxPaletteColors)
 	}
+	if err := maxPaletteAsset.ValidateFramesRGBA(make([]byte, maxPaletteAsset.CanvasRGBABytes())); err != nil {
+		t.Fatalf("ValidateFramesRGBA() 256-color palette error = %v", err)
+	}
 	noPaletteAsset, err := Parse(buildDecodeFixture(
 		nil,
 		[]decodeFixtureFrame{{
@@ -380,6 +383,9 @@ func TestParseValidatesPaletteHeaders(t *testing.T) {
 	}
 	if noPaletteAsset.ColorCount != 0 {
 		t.Fatalf("Parse() empty palette color count = %d, want 0", noPaletteAsset.ColorCount)
+	}
+	if err := noPaletteAsset.ValidateFramesRGBA(make([]byte, noPaletteAsset.CanvasRGBABytes())); err != nil {
+		t.Fatalf("ValidateFramesRGBA() empty palette error = %v", err)
 	}
 	tests := []struct {
 		name      string
@@ -402,12 +408,24 @@ func TestParseValidatesPaletteHeaders(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := Parse(buildDecodeFixture(test.palette, []decodeFixtureFrame{test.frame}))
+			data := buildDecodeFixture(test.palette, []decodeFixtureFrame{test.frame})
+			_, err := Parse(data)
 			if err == nil || !strings.Contains(err.Error(), test.wantError) {
 				t.Fatalf("Parse() error = %v, want containing %q", err, test.wantError)
 			}
+			if err := parseAndValidateFramesRGBA(data); err == nil || !strings.Contains(err.Error(), test.wantError) {
+				t.Fatalf("parseAndValidateFramesRGBA() error = %v, want containing %q", err, test.wantError)
+			}
 		})
 	}
+}
+
+func parseAndValidateFramesRGBA(data []byte) error {
+	asset, err := Parse(data)
+	if err != nil {
+		return err
+	}
+	return asset.ValidateFramesRGBA(make([]byte, asset.CanvasRGBABytes()))
 }
 
 type frameVisit struct {
