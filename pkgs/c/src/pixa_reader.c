@@ -5,6 +5,7 @@
 #define PIXA_HEADER_SIZE 40u
 #define PIXA_CLIP_ENTRY_SIZE 56u
 #define PIXA_FRAME_ENTRY_SIZE 16u
+#define PIXA_MAX_PALETTE_COLORS 256u
 
 static uint16_t read_u16(const uint8_t *data, size_t offset) {
   return (uint16_t)data[offset] | ((uint16_t)data[offset + 1u] << 8);
@@ -57,6 +58,9 @@ int pixa_open_memory(const void *data, size_t len, pixa_asset_t *out_asset) {
   if (asset.canvas.width == 0u || asset.canvas.height == 0u) {
     return PIXA_ERR_INVALID_FORMAT;
   }
+  if (asset.color_count > PIXA_MAX_PALETTE_COLORS) {
+    return PIXA_ERR_INVALID_FORMAT;
+  }
   if ((size_t)asset.canvas.width > SIZE_MAX / (size_t)asset.canvas.height ||
       (size_t)asset.canvas.width * (size_t)asset.canvas.height >
           SIZE_MAX / PIXA_PIXEL_BYTES) {
@@ -72,6 +76,9 @@ int pixa_open_memory(const void *data, size_t len, pixa_asset_t *out_asset) {
       !require_range(len, asset.frame_offset,
                      (size_t)asset.frame_count * PIXA_FRAME_ENTRY_SIZE) ||
       !require_range(len, asset.payload_offset, asset.payload_len)) {
+    return PIXA_ERR_INVALID_FORMAT;
+  }
+  if (asset.color_count > 0u && read_u16(bytes, asset.palette_offset) != 0u) {
     return PIXA_ERR_INVALID_FORMAT;
   }
   for (uint16_t i = 0u; i < asset.clip_count; ++i) {

@@ -152,18 +152,6 @@ func TestApplyClipFrameRGBARejectsMalformedPayloads(t *testing.T) {
 			wantError: "palette index 1",
 		},
 		{
-			name:      "transparent palette value referenced",
-			palette:   []uint16{1},
-			frame:     decodeFixtureFrame{encoding: keyEncodingPaletteRLE, payload: []byte{9, 0}},
-			wantError: "transparent palette index 0",
-		},
-		{
-			name:      "transparent palette value unused",
-			palette:   []uint16{1, 0xf800},
-			frame:     decodeFixtureFrame{encoding: keyEncodingPaletteRLE, payload: []byte{9, 1}},
-			wantError: "transparent palette index 0",
-		},
-		{
 			name:      "RLE underflow",
 			palette:   []uint16{0},
 			frame:     decodeFixtureFrame{encoding: keyEncodingPaletteRLE, payload: []byte{8, 0}},
@@ -363,6 +351,65 @@ func TestValidateFramesRGBARejectsNoClips(t *testing.T) {
 	}
 }
 
+func TestParseValidatesPaletteHeaders(t *testing.T) {
+	oversizedPalette := make([]uint16, maxPaletteColors+1)
+	oversizedPalette[1] = 0xf800
+	rawRGB565 := make([]byte, 3*3*2)
+	maxPaletteAsset, err := Parse(buildDecodeFixture(
+		oversizedPalette[:maxPaletteColors],
+		[]decodeFixtureFrame{{
+			encoding: keyEncodingPaletteRLE,
+			payload:  []byte{9, 1},
+		}},
+	))
+	if err != nil {
+		t.Fatalf("Parse() 256-color palette error = %v", err)
+	}
+	if maxPaletteAsset.ColorCount != maxPaletteColors {
+		t.Fatalf("Parse() color count = %d, want %d", maxPaletteAsset.ColorCount, maxPaletteColors)
+	}
+	noPaletteAsset, err := Parse(buildDecodeFixture(
+		nil,
+		[]decodeFixtureFrame{{
+			encoding: keyEncodingRGB565,
+			payload:  rawRGB565,
+		}},
+	))
+	if err != nil {
+		t.Fatalf("Parse() empty palette error = %v", err)
+	}
+	if noPaletteAsset.ColorCount != 0 {
+		t.Fatalf("Parse() empty palette color count = %d, want 0", noPaletteAsset.ColorCount)
+	}
+	tests := []struct {
+		name      string
+		palette   []uint16
+		frame     decodeFixtureFrame
+		wantError string
+	}{
+		{
+			name:      "more than 256 colors",
+			palette:   oversizedPalette,
+			frame:     decodeFixtureFrame{encoding: keyEncodingPaletteRLE, payload: []byte{9, 1}},
+			wantError: "color count 257 exceeds 256",
+		},
+		{
+			name:      "nonzero transparent entry with RGB565",
+			palette:   []uint16{0x001f},
+			frame:     decodeFixtureFrame{encoding: keyEncodingRGB565, payload: rawRGB565},
+			wantError: "palette index 0",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := Parse(buildDecodeFixture(test.palette, []decodeFixtureFrame{test.frame}))
+			if err == nil || !strings.Contains(err.Error(), test.wantError) {
+				t.Fatalf("Parse() error = %v, want containing %q", err, test.wantError)
+			}
+		})
+	}
+}
+
 type frameVisit struct {
 	clip    int
 	frame   uint32
@@ -387,6 +434,15 @@ func visiblePixels(rgba []byte) int {
 
 func parseDecodeFixture(t *testing.T, palette []uint16, frames []decodeFixtureFrame) Asset {
 	t.Helper()
+	data := buildDecodeFixture(palette, frames)
+	asset, err := Parse(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return asset
+}
+
+func buildDecodeFixture(palette []uint16, frames []decodeFixtureFrame) []byte {
 	const (
 		width          = 3
 		height         = 3
@@ -432,11 +488,7 @@ func parseDecodeFixture(t *testing.T, palette []uint16, frames []decodeFixtureFr
 		copy(data[payloadOffset+payloadCursor:], frame.payload)
 		payloadCursor += len(frame.payload)
 	}
-	asset, err := Parse(data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return asset
+	return data
 }
 
 func diffPayload(x, y, width, height uint16, rle []byte) []byte {

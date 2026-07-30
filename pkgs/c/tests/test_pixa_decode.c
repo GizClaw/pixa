@@ -138,20 +138,42 @@ static void assert_invalid_palette_rle(const uint16_t *palette,
 
 static void test_rejects_malformed_palette_rle(void) {
   const uint16_t palette[] = {0u, 0xf800u};
-  const uint16_t bad_transparent_palette[] = {0x001fu, 0xf800u};
   const uint8_t truncated[] = {1u};
   const uint8_t zero_run[] = {0u, 0u};
   const uint8_t bad_index[] = {2u, 2u};
   const uint8_t underflow[] = {1u, 1u};
   const uint8_t overflow[] = {3u, 1u};
-  const uint8_t bad_transparent[] = {2u, 0u};
   assert_invalid_palette_rle(palette, 2u, truncated, sizeof(truncated));
   assert_invalid_palette_rle(palette, 2u, zero_run, sizeof(zero_run));
   assert_invalid_palette_rle(palette, 2u, bad_index, sizeof(bad_index));
   assert_invalid_palette_rle(palette, 2u, underflow, sizeof(underflow));
   assert_invalid_palette_rle(palette, 2u, overflow, sizeof(overflow));
-  assert_invalid_palette_rle(bad_transparent_palette, 2u, bad_transparent,
-                             sizeof(bad_transparent));
+}
+
+static void test_rejects_invalid_palette_header(void) {
+  uint8_t data[768];
+  uint16_t oversized_palette[257] = {0u};
+  const uint16_t bad_transparent_palette[] = {0x001fu};
+  const uint8_t palette_rle[] = {2u, 1u};
+  const uint8_t rgb565[] = {0x00u, 0xf8u, 0x1fu, 0x00u};
+  pixa_asset_t asset;
+  size_t len;
+
+  oversized_palette[1] = 0xf800u;
+  len = build_asset(data, sizeof(data), oversized_palette, 256u, palette_rle,
+                    sizeof(palette_rle), 1u);
+  assert(pixa_open_memory(data, len, &asset) == PIXA_OK);
+
+  len = build_asset(data, sizeof(data), oversized_palette, 257u, palette_rle,
+                    sizeof(palette_rle), 1u);
+  assert(pixa_open_memory(data, len, &asset) == PIXA_ERR_INVALID_FORMAT);
+
+  len = build_asset(data, sizeof(data), bad_transparent_palette, 1u, rgb565,
+                    sizeof(rgb565), 2u);
+  assert(pixa_open_memory(data, len, &asset) == PIXA_ERR_INVALID_FORMAT);
+
+  len = build_asset(data, sizeof(data), NULL, 0u, rgb565, sizeof(rgb565), 2u);
+  assert(pixa_open_memory(data, len, &asset) == PIXA_OK);
 }
 
 int main(void) {
@@ -160,5 +182,6 @@ int main(void) {
   test_rgb565_key_frame_with_palette();
   test_palette_rle_key_frame_with_raw_size();
   test_rejects_malformed_palette_rle();
+  test_rejects_invalid_palette_header();
   return 0;
 }

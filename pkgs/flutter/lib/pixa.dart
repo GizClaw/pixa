@@ -8,6 +8,7 @@ const pixaClipEntrySize = 56;
 const pixaFrameEntrySize = 16;
 const pixaClipNameSize = 32;
 const pixaRgb565BytesPerPixel = 2;
+const pixaMaxPaletteColors = 256;
 const pixaKeyEncodingPaletteRle = 1;
 const pixaKeyEncodingRgb565 = 2;
 
@@ -178,6 +179,13 @@ PixaAsset parsePixa(Uint8List input) {
   if (width == 0 || height == 0) {
     throw PixaParseException('Invalid PIXA canvas size', bytes, 8);
   }
+  if (colorCount > pixaMaxPaletteColors) {
+    throw PixaParseException(
+      'PIXA palette has $colorCount colors; at most $pixaMaxPaletteColors are supported',
+      bytes,
+      12,
+    );
+  }
 
   _requireRange(
     bytes,
@@ -185,6 +193,13 @@ PixaAsset parsePixa(Uint8List input) {
     colorCount * pixaRgb565BytesPerPixel,
     'palette',
   );
+  if (colorCount > 0 && data.getUint16(paletteOffset, Endian.little) != 0) {
+    throw PixaParseException(
+      'PIXA palette index 0 must store RGB565 value 0',
+      bytes,
+      paletteOffset,
+    );
+  }
   _requireRange(bytes, clipOffset, clipCount * pixaClipEntrySize, 'clip table');
   _requireRange(
     bytes,

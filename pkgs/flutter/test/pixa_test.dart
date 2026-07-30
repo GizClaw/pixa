@@ -69,6 +69,50 @@ void main() {
       throwsA(isA<PixaParseException>()),
     );
 
+    final oversizedPalette = List<int>.filled(257, 0);
+    oversizedPalette[1] = 0xf800;
+    expect(
+      parsePixa(
+        makePixa(
+          width: 1,
+          height: 1,
+          palette: oversizedPalette.sublist(0, 256),
+          frameEncoding: 1,
+          payload: [1, 1],
+        ),
+      ).colorCount,
+      256,
+    );
+    expect(
+      () => parsePixa(
+        makePixa(
+          width: 1,
+          height: 1,
+          palette: oversizedPalette,
+          frameEncoding: 1,
+          payload: [1, 1],
+        ),
+      ),
+      throwsA(
+        isA<PixaParseException>().having(
+          (error) => error.message,
+          'message',
+          contains('at most 256'),
+        ),
+      ),
+    );
+    expect(
+      () => parsePixa(makePixa(palette: [0x001f], frameEncoding: 2)),
+      throwsA(
+        isA<PixaParseException>().having(
+          (error) => error.message,
+          'message',
+          contains('index 0'),
+        ),
+      ),
+    );
+    expect(parsePixa(makePixa(palette: const [])).colorCount, 0);
+
     final emptyClip = makePixa();
     ByteData.sublistView(emptyClip).setUint32(82, 0, Endian.little);
     expect(parsePixa(emptyClip).clips.single.frameCount, 0);
@@ -175,20 +219,6 @@ void main() {
         ),
       );
     }
-
-    final badTransparent = parsePixa(
-      makePixa(frameEncoding: 1, palette: [0x001f, 0xf800], payload: [2, 1]),
-    );
-    expect(
-      () => renderPixaFrameRgba(badTransparent, 0),
-      throwsA(
-        isA<PixaParseException>().having(
-          (error) => error.message,
-          'message',
-          contains('index 0'),
-        ),
-      ),
-    );
   });
 
   test('parses unsupported frame metadata and rejects it in renderer', () {

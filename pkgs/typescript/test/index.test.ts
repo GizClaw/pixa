@@ -108,6 +108,54 @@ test("parsePixa rejects invalid files", () => {
       ),
     /payload range/,
   );
+
+  const oversizedPalette = Array<number>(257).fill(0);
+  oversizedPalette[1] = 0xf800;
+  assert.equal(
+    parsePixa(
+      makePixa({
+        clips: ["idle"],
+        encoding: 1,
+        height: 1,
+        palette: oversizedPalette.slice(0, 256),
+        payload: [1, 1],
+        width: 1,
+      }),
+    ).colorCount,
+    256,
+  );
+  assert.throws(
+    () =>
+      parsePixa(
+        makePixa({
+          clips: ["idle"],
+          encoding: 1,
+          height: 1,
+          palette: oversizedPalette,
+          payload: [1, 1],
+          width: 1,
+        }),
+      ),
+    /at most 256/,
+  );
+  assert.throws(
+    () =>
+      parsePixa(
+        makePixa({
+          clips: ["idle"],
+          encoding: 2,
+          height: 1,
+          palette: [0x001f],
+          payload: [0x00, 0xf8, 0x1f, 0x00],
+          width: 2,
+        }),
+      ),
+    /index 0/,
+  );
+  assert.equal(
+    parsePixa(makePixa({ clips: ["idle"], palette: [] })).colorCount,
+    0,
+  );
 });
 
 test("validatePixa enforces PetDef and BadgeDef clip contracts", () => {
@@ -200,18 +248,6 @@ test("renderPixaFrameRGBA rejects malformed palette RLE", () => {
     );
     assert.throws(() => renderPixaFrameRGBA(asset, 0), pattern);
   }
-
-  const badTransparentEntry = parsePixa(
-    makePixa({
-      clips: ["idle"],
-      encoding: 1,
-      height: 1,
-      palette: [0x001f, 0xf800],
-      payload: [2, 1],
-      width: 2,
-    }),
-  );
-  assert.throws(() => renderPixaFrameRGBA(badTransparentEntry, 0), /index 0/);
 });
 
 type MakePixaOptions = {

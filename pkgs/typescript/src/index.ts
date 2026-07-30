@@ -4,6 +4,7 @@ export const PIXA_CLIP_ENTRY_SIZE = 56;
 export const PIXA_FRAME_ENTRY_SIZE = 16;
 export const PIXA_CLIP_NAME_SIZE = 32;
 export const PIXA_RGB565_PIXEL_BYTES = 2;
+export const PIXA_MAX_PALETTE_COLORS = 256;
 export const PIXA_KEY_ENCODING_PALETTE_RLE = 1;
 export const PIXA_KEY_ENCODING_RGB565 = 2;
 
@@ -90,6 +91,11 @@ export function parsePixa(input: ArrayBuffer | ArrayBufferView): PixaAsset {
     throw new PixaParseError("Invalid PIXA canvas size.");
   }
   const colorCount = view.getUint16(12, true);
+  if (colorCount > PIXA_MAX_PALETTE_COLORS) {
+    throw new PixaParseError(
+      `PIXA palette has ${colorCount} colors; at most ${PIXA_MAX_PALETTE_COLORS} are supported.`,
+    );
+  }
   const clipCount = view.getUint16(14, true);
   const frameCount = view.getUint32(16, true);
   const paletteOffset = view.getUint32(20, true);
@@ -99,6 +105,9 @@ export function parsePixa(input: ArrayBuffer | ArrayBufferView): PixaAsset {
   const payloadLength = view.getUint32(36, true);
 
   requireRange(view, paletteOffset, colorCount * 2, "palette");
+  if (colorCount > 0 && view.getUint16(paletteOffset, true) !== 0) {
+    throw new PixaParseError("PIXA palette index 0 must store RGB565 value 0.");
+  }
   requireRange(
     view,
     clipOffset,

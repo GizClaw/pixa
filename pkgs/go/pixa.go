@@ -7,11 +7,12 @@ import (
 )
 
 const (
-	Magic      = "PIXA"
-	HeaderSize = 40
-	Version    = 1
-	clipSize   = 56
-	frameSize  = 16
+	Magic            = "PIXA"
+	HeaderSize       = 40
+	Version          = 1
+	clipSize         = 56
+	frameSize        = 16
+	maxPaletteColors = 256
 )
 
 // Clip is one animation entry in the PIXA clip table.
@@ -75,11 +76,17 @@ func Parse(data []byte) (Asset, error) {
 	if asset.Width == 0 || asset.Height == 0 {
 		return Asset{}, fmt.Errorf("pixa: empty canvas")
 	}
+	if asset.ColorCount > maxPaletteColors {
+		return Asset{}, fmt.Errorf("pixa: palette color count %d exceeds %d", asset.ColorCount, maxPaletteColors)
+	}
 	if !rangeOK(len(data), asset.PaletteOffset, uint64(asset.ColorCount)*2) ||
 		!rangeOK(len(data), asset.ClipOffset, uint64(asset.ClipCount)*clipSize) ||
 		!rangeOK(len(data), asset.FrameOffset, uint64(asset.FrameCount)*frameSize) ||
 		!rangeOK(len(data), asset.PayloadOffset, uint64(asset.PayloadLength)) {
 		return Asset{}, fmt.Errorf("pixa: table or payload range exceeds file")
+	}
+	if asset.ColorCount > 0 && binary.LittleEndian.Uint16(data[asset.PaletteOffset:]) != 0 {
+		return Asset{}, fmt.Errorf("pixa: transparent palette index 0 stores a nonzero RGB565 value")
 	}
 	asset.Clips = make([]Clip, asset.ClipCount)
 	for i := range asset.Clips {
