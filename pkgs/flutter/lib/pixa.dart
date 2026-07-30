@@ -8,6 +8,9 @@ const pixaClipEntrySize = 56;
 const pixaFrameEntrySize = 16;
 const pixaClipNameSize = 32;
 const pixaRgb565BytesPerPixel = 2;
+const pixaMaxPaletteColors = 256;
+const pixaKeyEncodingPaletteRle = 1;
+const pixaKeyEncodingRgb565 = 2;
 
 class PixaParseException implements FormatException {
   PixaParseException(this.message, [this.source, this.offset]);
@@ -176,6 +179,13 @@ PixaAsset parsePixa(Uint8List input) {
   if (width == 0 || height == 0) {
     throw PixaParseException('Invalid PIXA canvas size', bytes, 8);
   }
+  if (colorCount > pixaMaxPaletteColors) {
+    throw PixaParseException(
+      'PIXA palette has $colorCount colors; at most $pixaMaxPaletteColors are supported',
+      bytes,
+      12,
+    );
+  }
 
   _requireRange(
     bytes,
@@ -183,6 +193,13 @@ PixaAsset parsePixa(Uint8List input) {
     colorCount * pixaRgb565BytesPerPixel,
     'palette',
   );
+  if (colorCount > 0 && data.getUint16(paletteOffset, Endian.little) != 0) {
+    throw PixaParseException(
+      'PIXA palette index 0 must store RGB565 value 0',
+      bytes,
+      paletteOffset,
+    );
+  }
   _requireRange(bytes, clipOffset, clipCount * pixaClipEntrySize, 'clip table');
   _requireRange(
     bytes,
@@ -346,7 +363,10 @@ PixaFrameRgba renderPixaFrameRgba(PixaAsset asset, int frameIndex) {
   final legacyRgb565 =
       frame.encoding == 0 &&
       frame.payloadLength == asset.canvas.rgb565ByteCount;
-  if (frame.encoding != 2 && !legacyRgb565) {
+  if (frame.encoding == pixaKeyEncodingPaletteRle) {
+    return _renderPaletteRleFrameRgba(asset, frame);
+  }
+  if (frame.encoding != pixaKeyEncodingRgb565 && !legacyRgb565) {
     throw PixaParseException(
       'PIXA key-frame encoding ${frame.encoding} is unsupported by the Flutter renderer',
       asset.bytes,
@@ -379,6 +399,86 @@ PixaFrameRgba renderPixaFrameRgba(PixaAsset asset, int frameIndex) {
     output[outputOffset + 3] = 255;
   }
 
+  return PixaFrameRgba(
+    width: asset.canvas.width,
+    height: asset.canvas.height,
+    data: output,
+  );
+}
+
+PixaFrameRgba _renderPaletteRleFrameRgba(PixaAsset asset, PixaFrame frame) {
+  if (asset.colorCount == 0) {
+    throw PixaParseException(
+      'PIXA palette RLE requires a non-empty palette',
+      asset.bytes,
+    );
+  }
+  final data = ByteData.sublistView(asset.bytes);
+  if (data.getUint16(asset.paletteOffset, Endian.little) != 0) {
+    throw PixaParseException(
+      'PIXA palette index 0 must store RGB565 value 0',
+      asset.bytes,
+      asset.paletteOffset,
+    );
+  }
+  final start = asset.payloadOffset + frame.payloadOffset;
+  _requireRange(asset.bytes, start, frame.payloadLength, 'frame payload');
+  if (frame.payloadLength.isOdd) {
+    throw PixaParseException(
+      'Invalid PIXA palette RLE payload length',
+      asset.bytes,
+      start,
+    );
+  }
+  final output = Uint8ClampedList(asset.canvas.pixelCount * 4);
+  var pixel = 0;
+  final end = start + frame.payloadLength;
+  for (var offset = start; offset < end; offset += 2) {
+    final runLength = asset.bytes[offset];
+    final paletteIndex = asset.bytes[offset + 1];
+    if (runLength == 0) {
+      throw PixaParseException(
+        'PIXA palette RLE contains a zero-length run',
+        asset.bytes,
+        offset,
+      );
+    }
+    if (paletteIndex >= asset.colorCount) {
+      throw PixaParseException(
+        'PIXA palette RLE index $paletteIndex exceeds the palette',
+        asset.bytes,
+        offset + 1,
+      );
+    }
+    if (runLength > asset.canvas.pixelCount - pixel) {
+      throw PixaParseException(
+        'PIXA palette RLE exceeds the frame canvas',
+        asset.bytes,
+        offset,
+      );
+    }
+    final color = data.getUint16(
+      asset.paletteOffset + paletteIndex * 2,
+      Endian.little,
+    );
+    for (var count = 0; count < runLength; count += 1) {
+      final outputOffset = pixel * 4;
+      if (paletteIndex != 0) {
+        output[outputOffset] = (((color >> 11) & 0x1f) * 255 / 31).round();
+        output[outputOffset + 1] = (((color >> 5) & 0x3f) * 255 / 63).round();
+        output[outputOffset + 2] = ((color & 0x1f) * 255 / 31).round();
+        output[outputOffset + 3] = 255;
+      }
+      pixel += 1;
+    }
+  }
+  if (pixel != asset.canvas.pixelCount) {
+    throw PixaParseException(
+      'PIXA palette RLE does not fill the frame canvas',
+      asset.bytes,
+      start,
+    );
+  }
   return PixaFrameRgba(
     width: asset.canvas.width,
     height: asset.canvas.height,

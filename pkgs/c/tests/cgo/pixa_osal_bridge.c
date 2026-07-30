@@ -4,6 +4,7 @@
 #include "_cgo_export.h"
 #include "pixa_extract.h"
 #include "pixa_osal.h"
+#include "pixa_pack.h"
 
 struct pixa_osal_file {
   uintptr_t handle;
@@ -116,4 +117,14 @@ int pixaGoOSALReadSecond(pixa_osal_api_t *api, const char *path,
 int pixaGoExtract(const void *data, size_t len, const char *path,
                   pixa_osal_api_t *api) {
   return pixa_extract_memory_to_dir(data, len, path, api, NULL, NULL);
+}
+
+int pixaGoPack(const char *dir_path, const char *out_path, const char *clip_id,
+               pixa_osal_api_t *api) {
+  const char *clips[] = {clip_id};
+  const pixa_pack_options_t options = {
+      .clip_ids = clips,
+      .clip_count = 1u,
+  };
+  return pixa_pack_dir_to_file(dir_path, out_path, api, NULL, &options, NULL);
 }

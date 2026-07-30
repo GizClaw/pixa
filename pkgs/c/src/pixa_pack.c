@@ -28,6 +28,8 @@ typedef struct pixa_pack_clip_state {
   uint32_t first_frame;
   uint8_t *frames;
   size_t frames_len;
+  uint32_t *payload_offsets;
+  uint32_t *payload_lengths;
 } pixa_pack_clip_state_t;
 
 static void *default_alloc(void *user, size_t len) {
@@ -309,21 +311,20 @@ static int read_file_alloc(const pixa_osal_api_t *fs, const char *path,
   return PIXA_OK;
 }
 
-static uint16_t argb4444_to_rgb565(uint16_t value) {
-  uint8_t a4 = (uint8_t)((value >> 12) & 0x0fu);
+static uint8_t quantize_channel(uint8_t value, uint8_t levels) {
+  uint16_t level =
+      (uint16_t)(((uint16_t)value * (uint16_t)(levels - 1u) + 127u) / 255u);
+  return (uint8_t)((level * 255u + (uint16_t)(levels - 1u) / 2u) /
+                   (uint16_t)(levels - 1u));
+}
+
+static uint16_t quantize_argb4444_to_rgb565(uint16_t value) {
   uint8_t r4 = (uint8_t)((value >> 8) & 0x0fu);
   uint8_t g4 = (uint8_t)((value >> 4) & 0x0fu);
   uint8_t b4 = (uint8_t)(value & 0x0fu);
-  uint8_t r8;
-  uint8_t g8;
-  uint8_t b8;
-
-  if (a4 == 0u) {
-    return 0u;
-  }
-  r8 = (uint8_t)((r4 << 4) | r4);
-  g8 = (uint8_t)((g4 << 4) | g4);
-  b8 = (uint8_t)((b4 << 4) | b4);
+  uint8_t r8 = quantize_channel((uint8_t)((r4 << 4) | r4), 6u);
+  uint8_t g8 = quantize_channel((uint8_t)((g4 << 4) | g4), 7u);
+  uint8_t b8 = quantize_channel((uint8_t)((b4 << 4) | b4), 6u);
   return (uint16_t)(((uint16_t)(r8 >> 3) << 11) | ((uint16_t)(g8 >> 2) << 5) |
                     (uint16_t)(b8 >> 3));
 }
@@ -334,10 +335,6 @@ static uint16_t read_le16(const uint8_t *data, size_t offset) {
 
 static int palette_find_or_add(uint16_t *palette, uint16_t *palette_count,
                                uint16_t color, uint8_t *out_index) {
-  if (color == 0u) {
-    *out_index = 0u;
-    return PIXA_OK;
-  }
   for (uint16_t i = 1u; i < *palette_count; ++i) {
     if (palette[i] == color) {
       *out_index = (uint8_t)i;
@@ -359,8 +356,14 @@ static int index_frame(const uint8_t *argb4444, size_t frame_bytes,
   size_t pixels = frame_bytes / PIXA_ARGB4444_PIXEL_BYTES;
   for (size_t i = 0u; i < pixels; ++i) {
     uint16_t argb = read_le16(argb4444, i * 2u);
-    uint16_t rgb565 = argb4444_to_rgb565(argb);
-    int rc = palette_find_or_add(palette, palette_count, rgb565, indices + i);
+    uint8_t alpha = (uint8_t)((argb >> 12) & 0x0fu);
+    int rc;
+    if (alpha < 8u) {
+      indices[i] = 0u;
+      continue;
+    }
+    rc = palette_find_or_add(palette, palette_count,
+                             quantize_argb4444_to_rgb565(argb), indices + i);
     if (rc != PIXA_OK) {
       return rc;
     }
@@ -401,31 +404,20 @@ static int append_rle(pixa_vec_t *payload, const uint8_t *indices,
   return PIXA_OK;
 }
 
-static int append_rgb565(pixa_vec_t *payload, const uint8_t *argb4444,
-                         size_t frame_bytes) {
-  for (size_t offset = 0u; offset < frame_bytes; offset += 2u) {
-    uint16_t color = argb4444_to_rgb565(read_le16(argb4444, offset));
-    uint8_t bytes[2] = {(uint8_t)color, (uint8_t)(color >> 8u)};
-    int rc = vec_append(payload, bytes, sizeof(bytes));
-    if (rc != PIXA_OK)
-      return rc;
-  }
-  return PIXA_OK;
-}
-
 static int safe_clip_id(const char *id) {
   size_t len;
   if (id == NULL || id[0] == '\0') {
     return 0;
   }
   len = strlen(id);
-  if (len > PIXA_MAX_CLIP_NAME) {
+  if (len >= PIXA_MAX_CLIP_NAME || (len == 1u && id[0] == '.') ||
+      (len == 2u && id[0] == '.' && id[1] == '.')) {
     return 0;
   }
   for (size_t i = 0u; i < len; ++i) {
     char ch = id[i];
     if (!((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
-          (ch >= '0' && ch <= '9') || ch == '_' || ch == '-')) {
+          (ch >= '0' && ch <= '9') || ch == '_' || ch == '-' || ch == '.')) {
       return 0;
     }
   }
@@ -515,6 +507,12 @@ static void free_clip_states(pixa_pack_clip_state_t *clips, size_t clip_count,
     }
     if (clips[i].durations_le != NULL) {
       alloc.free(alloc.user, clips[i].durations_le);
+    }
+    if (clips[i].payload_offsets != NULL) {
+      alloc.free(alloc.user, clips[i].payload_offsets);
+    }
+    if (clips[i].payload_lengths != NULL) {
+      alloc.free(alloc.user, clips[i].payload_lengths);
     }
   }
   alloc.free(alloc.user, clips);
@@ -617,10 +615,35 @@ int pixa_pack_dir_to_file(const char *dir_path, const char *out_path,
     }
     frame_count += clips[i].dir_clip.frame_count;
 
+    if (clips[i].dir_clip.frame_count == 0u) {
+      alloc.free(alloc.user, index_data);
+      alloc.free(alloc.user, indices);
+      free_clip_states(clips, options->clip_count, alloc);
+      vec_free(&payload);
+      return PIXA_ERR_INVALID_FORMAT;
+    }
+    clips[i].payload_offsets = (uint32_t *)alloc.alloc(
+        alloc.user, (size_t)clips[i].dir_clip.frame_count * sizeof(uint32_t));
+    clips[i].payload_lengths = (uint32_t *)alloc.alloc(
+        alloc.user, (size_t)clips[i].dir_clip.frame_count * sizeof(uint32_t));
+    if (clips[i].payload_offsets == NULL || clips[i].payload_lengths == NULL) {
+      alloc.free(alloc.user, index_data);
+      alloc.free(alloc.user, indices);
+      free_clip_states(clips, options->clip_count, alloc);
+      vec_free(&payload);
+      return PIXA_ERR_NO_MEMORY;
+    }
+
     for (uint32_t frame = 0u; frame < clips[i].dir_clip.frame_count; ++frame) {
       const uint8_t *frame_data =
           clips[i].frames + (size_t)frame * clips[i].dir_clip.frame_bytes;
-      rc = append_rgb565(&payload, frame_data, clips[i].dir_clip.frame_bytes);
+      rc = index_frame(frame_data, clips[i].dir_clip.frame_bytes, indices,
+                       palette, &palette_count);
+      if (rc == PIXA_OK) {
+        rc = append_rle(&payload, indices, pixa_canvas_pixel_count(meta.canvas),
+                        clips[i].payload_offsets + frame,
+                        clips[i].payload_lengths + frame);
+      }
       if (rc != PIXA_OK) {
         alloc.free(alloc.user, index_data);
         alloc.free(alloc.user, indices);
@@ -672,7 +695,6 @@ int pixa_pack_dir_to_file(const char *dir_path, const char *out_path,
 
   {
     uint32_t global_frame = 0u;
-    size_t payload_cursor = 0u;
     for (size_t clip_index = 0u; clip_index < options->clip_count;
          ++clip_index) {
       pixa_pack_clip_state_t *clip = clips + clip_index;
@@ -698,9 +720,10 @@ int pixa_pack_dir_to_file(const char *dir_path, const char *out_path,
       for (uint32_t frame = 0u; frame < clip->dir_clip.frame_count; ++frame) {
         size_t frame_base =
             frame_offset + (size_t)global_frame * PIXA_FRAME_ENTRY_SIZE;
-        uint32_t frame_len = (uint32_t)pixa_canvas_argb4444_bytes(meta.canvas);
-        if (payload_cursor > payload.len ||
-            frame_len > payload.len - payload_cursor) {
+        uint32_t frame_payload_offset = clip->payload_offsets[frame];
+        uint32_t frame_len = clip->payload_lengths[frame];
+        if (frame_payload_offset > payload.len ||
+            frame_len > payload.len - frame_payload_offset) {
           free_clip_states(clips, options->clip_count, alloc);
           vec_free(&payload);
           vec_free(&out);
@@ -709,10 +732,9 @@ int pixa_pack_dir_to_file(const char *dir_path, const char *out_path,
         write_u16(out.data, frame_base + 0u,
                   read_le16(clip->dir_clip.durations_le, (size_t)frame * 2u));
         out.data[frame_base + 2u] = PIXA_FRAME_KEY;
-        out.data[frame_base + 3u] = 2u;
-        write_u32(out.data, frame_base + 4u, (uint32_t)payload_cursor);
+        out.data[frame_base + 3u] = 1u;
+        write_u32(out.data, frame_base + 4u, frame_payload_offset);
         write_u32(out.data, frame_base + 8u, frame_len);
-        payload_cursor += frame_len;
         ++global_frame;
       }
     }

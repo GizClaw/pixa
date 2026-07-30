@@ -195,13 +195,15 @@ static int pixa_fs_write_file(const pixa_osal_api_t *fs, const char *path,
 
 static int validate_clip_name(const pixa_clip_t *clip) {
   if (clip == NULL || clip->name == NULL || clip->name_len == 0u ||
-      clip->name_len > PIXA_MAX_CLIP_NAME) {
+      clip->name_len >= PIXA_MAX_CLIP_NAME ||
+      (clip->name_len == 1u && clip->name[0] == '.') ||
+      (clip->name_len == 2u && clip->name[0] == '.' && clip->name[1] == '.')) {
     return PIXA_ERR_INVALID_CLIP_NAME;
   }
   for (size_t i = 0u; i < clip->name_len; ++i) {
     char ch = clip->name[i];
     if (!((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
-          (ch >= '0' && ch <= '9') || ch == '_' || ch == '-')) {
+          (ch >= '0' && ch <= '9') || ch == '_' || ch == '-' || ch == '.')) {
       return PIXA_ERR_INVALID_CLIP_NAME;
     }
   }

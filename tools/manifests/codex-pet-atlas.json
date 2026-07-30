@@ -1,0 +1,206 @@
+{
+  "canvas": {
+    "width": 96,
+    "height": 104
+  },
+  "atlas": {
+    "columns": 8,
+    "rows": 11
+  },
+  "alphaThreshold": 128,
+  "colorQuantization": "rgb-6x7x6",
+  "frameValidation": "visible-transparent-border",
+  "clips": [
+    {
+      "name": "idle",
+      "row": 0,
+      "frameCount": 6,
+      "durationMs": 180,
+      "loop": true
+    },
+    {
+      "name": "running-right",
+      "row": 1,
+      "frameCount": 8,
+      "durationMs": 100,
+      "loop": true
+    },
+    {
+      "name": "running-left",
+      "row": 2,
+      "frameCount": 8,
+      "durationMs": 100,
+      "loop": true
+    },
+    {
+      "name": "waving",
+      "row": 3,
+      "frameCount": 4,
+      "durationMs": 150,
+      "loop": false
+    },
+    {
+      "name": "jumping",
+      "row": 4,
+      "frameCount": 5,
+      "durationMs": 120,
+      "loop": false
+    },
+    {
+      "name": "failed",
+      "row": 5,
+      "frameCount": 8,
+      "durationMs": 150,
+      "loop": false
+    },
+    {
+      "name": "waiting",
+      "row": 6,
+      "frameCount": 6,
+      "durationMs": 180,
+      "loop": true
+    },
+    {
+      "name": "running",
+      "row": 7,
+      "frameCount": 6,
+      "durationMs": 140,
+      "loop": true
+    },
+    {
+      "name": "review",
+      "row": 8,
+      "frameCount": 6,
+      "durationMs": 180,
+      "loop": true
+    },
+    {
+      "name": "look-000",
+      "row": 9,
+      "column": 0,
+      "frameCount": 1,
+      "durationMs": 1000,
+      "loop": false
+    },
+    {
+      "name": "look-022.5",
+      "row": 9,
+      "column": 1,
+      "frameCount": 1,
+      "durationMs": 1000,
+      "loop": false
+    },
+    {
+      "name": "look-045",
+      "row": 9,
+      "column": 2,
+      "frameCount": 1,
+      "durationMs": 1000,
+      "loop": false
+    },
+    {
+      "name": "look-067.5",
+      "row": 9,
+      "column": 3,
+      "frameCount": 1,
+      "durationMs": 1000,
+      "loop": false
+    },
+    {
+      "name": "look-090",
+      "row": 9,
+      "column": 4,
+      "frameCount": 1,
+      "durationMs": 1000,
+      "loop": false
+    },
+    {
+      "name": "look-112.5",
+      "row": 9,
+      "column": 5,
+      "frameCount": 1,
+      "durationMs": 1000,
+      "loop": false
+    },
+    {
+      "name": "look-135",
+      "row": 9,
+      "column": 6,
+      "frameCount": 1,
+      "durationMs": 1000,
+      "loop": false
+    },
+    {
+      "name": "look-157.5",
+      "row": 9,
+      "column": 7,
+      "frameCount": 1,
+      "durationMs": 1000,
+      "loop": false
+    },
+    {
+      "name": "look-180",
+      "row": 10,
+      "column": 0,
+      "frameCount": 1,
+      "durationMs": 1000,
+      "loop": false
+    },
+    {
+      "name": "look-202.5",
+      "row": 10,
+      "column": 1,
+      "frameCount": 1,
+      "durationMs": 1000,
+      "loop": false
+    },
+    {
+      "name": "look-225",
+      "row": 10,
+      "column": 2,
+      "frameCount": 1,
+      "durationMs": 1000,
+      "loop": false
+    },
+    {
+      "name": "look-247.5",
+      "row": 10,
+      "column": 3,
+      "frameCount": 1,
+      "durationMs": 1000,
+      "loop": false
+    },
+    {
+      "name": "look-270",
+      "row": 10,
+      "column": 4,
+      "frameCount": 1,
+      "durationMs": 1000,
+      "loop": false
+    },
+    {
+      "name": "look-292.5",
+      "row": 10,
+      "column": 5,
+      "frameCount": 1,
+      "durationMs": 1000,
+      "loop": false
+    },
+    {
+      "name": "look-315",
+      "row": 10,
+      "column": 6,
+      "frameCount": 1,
+      "durationMs": 1000,
+      "loop": false
+    },
+    {
+      "name": "look-337.5",
+      "row": 10,
+      "column": 7,
+      "frameCount": 1,
+      "durationMs": 1000,
+      "loop": false
+    }
+  ]
+}

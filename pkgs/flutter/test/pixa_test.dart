@@ -69,6 +69,50 @@ void main() {
       throwsA(isA<PixaParseException>()),
     );
 
+    final oversizedPalette = List<int>.filled(257, 0);
+    oversizedPalette[1] = 0xf800;
+    expect(
+      parsePixa(
+        makePixa(
+          width: 1,
+          height: 1,
+          palette: oversizedPalette.sublist(0, 256),
+          frameEncoding: 1,
+          payload: [1, 1],
+        ),
+      ).colorCount,
+      256,
+    );
+    expect(
+      () => parsePixa(
+        makePixa(
+          width: 1,
+          height: 1,
+          palette: oversizedPalette,
+          frameEncoding: 1,
+          payload: [1, 1],
+        ),
+      ),
+      throwsA(
+        isA<PixaParseException>().having(
+          (error) => error.message,
+          'message',
+          contains('at most 256'),
+        ),
+      ),
+    );
+    expect(
+      () => parsePixa(makePixa(palette: [0x001f], frameEncoding: 2)),
+      throwsA(
+        isA<PixaParseException>().having(
+          (error) => error.message,
+          'message',
+          contains('index 0'),
+        ),
+      ),
+    );
+    expect(parsePixa(makePixa(palette: const [])).colorCount, 0);
+
     final emptyClip = makePixa();
     ByteData.sublistView(emptyClip).setUint32(82, 0, Endian.little);
     expect(parsePixa(emptyClip).clips.single.frameCount, 0);
@@ -141,6 +185,40 @@ void main() {
     expect(image.width, 2);
     expect(image.height, 1);
     expect(image.data, [255, 0, 0, 255, 0, 255, 0, 255]);
+  });
+
+  test('renders transparent palette RLE key frames to RGBA', () {
+    final asset = parsePixa(
+      makePixa(frameEncoding: 1, palette: [0, 0xf800], payload: [1, 0, 1, 1]),
+    );
+    final image = renderPixaFrameRgba(asset, 0);
+
+    expect(image.data, [0, 0, 0, 0, 255, 0, 0, 255]);
+  });
+
+  test('rejects malformed palette RLE key frames', () {
+    final malformed = <(List<int>, Matcher)>[
+      ([1], contains('payload length')),
+      ([0, 0], contains('zero-length')),
+      ([2, 2], contains('exceeds the palette')),
+      ([1, 1], contains('does not fill')),
+      ([3, 1], contains('exceeds the frame canvas')),
+    ];
+    for (final (payload, message) in malformed) {
+      final asset = parsePixa(
+        makePixa(frameEncoding: 1, palette: [0, 0xf800], payload: payload),
+      );
+      expect(
+        () => renderPixaFrameRgba(asset, 0),
+        throwsA(
+          isA<PixaParseException>().having(
+            (error) => error.message,
+            'message',
+            message,
+          ),
+        ),
+      );
+    }
   });
 
   test('parses unsupported frame metadata and rejects it in renderer', () {

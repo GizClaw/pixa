@@ -4,6 +4,9 @@ export const PIXA_CLIP_ENTRY_SIZE = 56;
 export const PIXA_FRAME_ENTRY_SIZE = 16;
 export const PIXA_CLIP_NAME_SIZE = 32;
 export const PIXA_RGB565_PIXEL_BYTES = 2;
+export const PIXA_MAX_PALETTE_COLORS = 256;
+export const PIXA_KEY_ENCODING_PALETTE_RLE = 1;
+export const PIXA_KEY_ENCODING_RGB565 = 2;
 
 export type PixaCanvas = {
   height: number;
@@ -88,6 +91,11 @@ export function parsePixa(input: ArrayBuffer | ArrayBufferView): PixaAsset {
     throw new PixaParseError("Invalid PIXA canvas size.");
   }
   const colorCount = view.getUint16(12, true);
+  if (colorCount > PIXA_MAX_PALETTE_COLORS) {
+    throw new PixaParseError(
+      `PIXA palette has ${colorCount} colors; at most ${PIXA_MAX_PALETTE_COLORS} are supported.`,
+    );
+  }
   const clipCount = view.getUint16(14, true);
   const frameCount = view.getUint32(16, true);
   const paletteOffset = view.getUint32(20, true);
@@ -97,6 +105,9 @@ export function parsePixa(input: ArrayBuffer | ArrayBufferView): PixaAsset {
   const payloadLength = view.getUint32(36, true);
 
   requireRange(view, paletteOffset, colorCount * 2, "palette");
+  if (colorCount > 0 && view.getUint16(paletteOffset, true) !== 0) {
+    throw new PixaParseError("PIXA palette index 0 must store RGB565 value 0.");
+  }
   requireRange(
     view,
     clipOffset,
@@ -242,7 +253,10 @@ export function renderPixaFrameRGBA(
   const legacyRgb565 =
     frame.encoding === 0 &&
     frame.payloadLength === asset.canvas.rgb565ByteCount;
-  if (frame.encoding !== 2 && !legacyRgb565) {
+  if (frame.encoding === PIXA_KEY_ENCODING_PALETTE_RLE) {
+    return renderPaletteRleFrameRGBA(asset, frame);
+  }
+  if (frame.encoding !== PIXA_KEY_ENCODING_RGB565 && !legacyRgb565) {
     throw new PixaParseError(
       `PIXA key frame encoding ${frame.encoding} is unsupported by the TypeScript renderer.`,
     );
@@ -268,6 +282,64 @@ export function renderPixaFrameRGBA(
     rgba[target + 1] = (((value >> 5) & 0x3f) * 255) / 63;
     rgba[target + 2] = ((value & 0x1f) * 255) / 31;
     rgba[target + 3] = 255;
+  }
+  return { data: rgba, height: asset.canvas.height, width: asset.canvas.width };
+}
+
+function renderPaletteRleFrameRGBA(
+  asset: PixaAsset,
+  frame: PixaFrame,
+): PixaFrameRGBA {
+  if (asset.colorCount === 0) {
+    throw new PixaParseError("PIXA palette RLE requires a non-empty palette.");
+  }
+  const transparentColor =
+    asset.bytes[asset.paletteOffset] |
+    (asset.bytes[asset.paletteOffset + 1] << 8);
+  if (transparentColor !== 0) {
+    throw new PixaParseError("PIXA palette index 0 must store RGB565 value 0.");
+  }
+  const start = asset.payloadOffset + frame.payloadOffset;
+  const end = start + frame.payloadLength;
+  if (end > asset.bytes.byteLength || frame.payloadLength % 2 !== 0) {
+    throw new PixaParseError("Invalid PIXA palette RLE payload length.");
+  }
+  const rgba = new Uint8ClampedArray(
+    new ArrayBuffer(asset.canvas.pixelCount * 4),
+  );
+  let pixel = 0;
+  for (let offset = start; offset < end; offset += 2) {
+    const runLength = asset.bytes[offset]!;
+    const paletteIndex = asset.bytes[offset + 1]!;
+    if (runLength === 0) {
+      throw new PixaParseError("PIXA palette RLE contains a zero-length run.");
+    }
+    if (paletteIndex >= asset.colorCount) {
+      throw new PixaParseError(
+        `PIXA palette RLE index ${paletteIndex} exceeds the palette.`,
+      );
+    }
+    if (runLength > asset.canvas.pixelCount - pixel) {
+      throw new PixaParseError("PIXA palette RLE exceeds the frame canvas.");
+    }
+    const paletteSource = asset.paletteOffset + paletteIndex * 2;
+    const color =
+      asset.bytes[paletteSource]! | (asset.bytes[paletteSource + 1]! << 8);
+    for (let count = 0; count < runLength; count += 1) {
+      const target = pixel * 4;
+      if (paletteIndex !== 0) {
+        rgba[target] = (((color >> 11) & 0x1f) * 255) / 31;
+        rgba[target + 1] = (((color >> 5) & 0x3f) * 255) / 63;
+        rgba[target + 2] = ((color & 0x1f) * 255) / 31;
+        rgba[target + 3] = 255;
+      }
+      pixel += 1;
+    }
+  }
+  if (pixel !== asset.canvas.pixelCount) {
+    throw new PixaParseError(
+      "PIXA palette RLE does not fill the frame canvas.",
+    );
   }
   return { data: rgba, height: asset.canvas.height, width: asset.canvas.width };
 }

@@ -65,3 +65,15 @@ infer RGB565 only from a canvas-sized payload and otherwise use palette RLE.
 A diff frame describes RLE rectangles on top of the preceding decoded frame.
 Consumers that only need container metadata must preserve the frame type and
 reject unsupported encodings at render time.
+
+A palette-RLE canvas is a sequence of two-byte `(run_length, palette_index)`
+pairs. `run_length` is in the range 1 through 255. Every palette index must be
+less than `color_count`, and the sum of the run lengths must equal exactly
+`width * height`; truncated, zero-length, underfilled, or overflowing payloads
+are invalid. Palette index `0` decodes to transparent regardless of RGB
+channels, while every other index decodes to an opaque RGB565 pixel.
+
+PIXA v1 has binary alpha and at most 256 palette entries. The repository
+cookers use an alpha threshold of 128 and a deterministic 6-by-7-by-6 opaque
+RGB color cube. This bounds a cooked palette to 252 opaque colors plus the
+reserved transparent entry without compositing source alpha onto a background.
