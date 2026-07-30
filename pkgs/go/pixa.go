@@ -1,4 +1,4 @@
-// Package pixa parses the stable PIXA v1 container header.
+// Package pixa parses and decodes stable PIXA v1 assets.
 package pixa
 
 import (

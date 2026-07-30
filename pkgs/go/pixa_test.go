@@ -46,6 +46,13 @@ func TestParseCommittedAssets(t *testing.T) {
 			if asset.ClipCount == 0 || asset.FrameCount == 0 {
 				t.Fatalf("asset has no animation data: %+v", asset)
 			}
+			canvasBytes := asset.CanvasRGBABytes()
+			if canvasBytes > 16<<20 {
+				t.Fatalf("decoded canvas is %d bytes, exceeds test limit", canvasBytes)
+			}
+			if err := asset.ValidateFramesRGBA(make([]byte, canvasBytes)); err != nil {
+				t.Fatalf("asset frame validation failed: %v", err)
+			}
 		})
 		return nil
 	})
